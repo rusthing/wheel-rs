@@ -1,0 +1,17 @@
+[package]
+name = "wheel-rs"
+version = "0.1.0"
+edition = "2024"
+authors = ["zbz"]
+keywords = ["tools", "utils"]
+description = "A Rust utility library providing file operations, time utilities and Duration serialization support."
+categories = ["development-tools"]
+license = "MIT"
+homepage = "https://github.com/rusthing/wheel-rs"
+repository = "https://github.com/rusthing/wheel-rs"
+readme = "README.md"
+
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+humantime = "2.3.0"
+sha2 = "0.10.9"
