@@ -1,6 +1,6 @@
 [package]
 name = "wheel-rs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["zbz"]
 keywords = ["tools", "utils"]
@@ -12,6 +12,7 @@ repository = "https://github.com/rusthing/wheel-rs"
 readme = "README.md"
 
 [dependencies]
+log = "0.4.28"
 serde = { version = "1.0.228", features = ["derive"] }
 humantime = "2.3.0"
 sha2 = "0.10.9"
