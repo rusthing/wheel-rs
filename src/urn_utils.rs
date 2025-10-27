@@ -1,7 +1,7 @@
 /// # HTTP 方法枚举
-/// 
+///
 /// 定义了常用的 HTTP 方法类型，包括 GET、POST、PUT 和 DELETE
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Method {
     /// GET 方法 - 用于请求获取资源
     Get,
@@ -13,12 +13,32 @@ pub enum Method {
     Delete,
 }
 
+impl Method {
+    /// 将 Method 枚举转换为对应的字符串表示
+    ///
+    /// # Returns
+    ///
+    /// 返回 HTTP 方法的大写字符串表示形式
+    ///
+    /// # Examples
+    ///
+    ///
+    pub fn to_string(&self) -> String {
+        match self {
+            Method::Get => "GET".to_string(),
+            Method::Post => "POST".to_string(),
+            Method::Put => "PUT".to_string(),
+            Method::Delete => "DELETE".to_string(),
+        }
+    }
+}
 /// # URN 结构体
-/// 
+///
 /// 用于表示统一资源名称（Uniform Resource Name），包含方法和 URL 两部分
 /// 支持两种格式：
 /// 1. 显式指定方法：`GET:example.com`
 /// 2. HTTP/HTTPS 前缀：`http:example.com` 或 `https:example.com`
+#[derive(Debug, Clone, PartialEq)]
 pub struct Urn {
     /// HTTP 方法
     pub method: Method,
@@ -28,29 +48,29 @@ pub struct Urn {
 
 impl Urn {
     /// # 创建一个新的 URN 实例
-    /// 
+    ///
     /// ## 参数
-    /// 
+    ///
     /// * `urn` - 表示 URN 的字符串，支持两种格式：
     ///   - 显式方法格式：`METHOD:URL`，例如 `GET:example.com`
     ///   - HTTP 前缀格式：`http:URL` 或 `https:URL`，会自动设置方法为 GET
-    /// 
+    ///
     /// ## 返回值
-    /// 
+    ///
     /// 返回解析后的 URN 实例
-    /// 
+    ///
     /// ## Panics
-    /// 
+    ///
     /// * 当 URL 部分为空时会触发 panic
     /// * 当方法部分不是有效的 HTTP 方法时会触发 panic
-    /// 
+    ///
     /// ## 示例
-    /// 
+    ///
     /// ```
     /// let urn = Urn::new("GET:example.com".to_string());
     /// assert!(matches!(urn.method, Method::Get));
     /// assert_eq!(urn.url, "example.com");
-    /// 
+    ///
     /// let urn = Urn::new("http:example.com".to_string());
     /// assert!(matches!(urn.method, Method::Get));
     /// assert_eq!(urn.url, "http:example.com");
@@ -107,13 +127,13 @@ mod tests {
     fn test_urn_with_empty_url() {
         let _urn = Urn::new("PUT:".to_string());
     }
-    
+
     #[test]
     fn test_http_prefix_urls() {
         let urn = Urn::new("http:example.com".to_string());
         assert!(matches!(urn.method, Method::Get));
         assert_eq!(urn.url, "http:example.com");
-        
+
         let urn = Urn::new("https:example.com".to_string());
         assert!(matches!(urn.method, Method::Get));
         assert_eq!(urn.url, "https:example.com");
