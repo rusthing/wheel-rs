@@ -46,9 +46,10 @@ pub fn serialize<S>(level: &Option<LevelFilter>, serializer: S) -> Result<S::Ok,
 where
     S: Serializer,
 {
-    match level {
-        Some(level) => level.as_str().serialize(serializer),
-        None => serializer.serialize_none(),
+    if let Some(level) = level {
+        level.as_str().serialize(serializer)
+    } else {
+        serializer.serialize_none()
     }
 }
 
@@ -81,8 +82,8 @@ where
     D: Deserializer<'de>,
 {
     let s: Option<String> = Option::deserialize(deserializer)?;
-    match s {
-        Some(s) => Ok(Some(match s.to_lowercase().as_str() {
+    if let Some(s) = s {
+        Ok(Some(match s.to_lowercase().as_str() {
             "off" => LevelFilter::Off,
             "error" => LevelFilter::Error,
             "warn" => LevelFilter::Warn,
@@ -95,7 +96,8 @@ where
                     s
                 )));
             }
-        })),
-        None => Ok(None),
+        }))
+    } else {
+        Ok(None)
     }
 }

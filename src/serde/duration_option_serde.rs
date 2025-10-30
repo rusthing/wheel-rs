@@ -7,7 +7,6 @@ use humantime::parse_duration;
 use serde::{Deserialize, Deserializer, Serializer};
 use std::time::Duration;
 
-
 /// # Duration序列化
 ///
 /// 将 Option<Duration> 序列化为字符串格式。Some(Duration) 会被转换为以秒为单位的字符串，
@@ -16,9 +15,10 @@ pub fn serialize<S>(dur: &Option<Duration>, serializer: S) -> Result<S::Ok, S::E
 where
     S: Serializer,
 {
-    match dur {
-        Some(d) => serializer.serialize_str(&format!("{}s", d.as_secs())),
-        None => serializer.serialize_none(),
+    if let Some(d) = dur {
+        serializer.serialize_str(&format!("{}s", d.as_secs()))
+    } else {
+        serializer.serialize_none()
     }
 }
 
@@ -31,11 +31,31 @@ pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error
 where
     D: Deserializer<'de>,
 {
-    let s: Option<String> = Option::deserialize(deserializer)?;
-    match s {
-        Some(s) => Ok(Some(
-            parse_duration(&s).expect("不正确的Duration字符串，支持的格式如5s、3m、6h"),
-        )),
-        None => Ok(None),
+    deserializer.deserialize_option(DurationVisitor)
+}
+
+struct DurationVisitor;
+impl<'de> serde::de::Visitor<'de> for DurationVisitor {
+    type Value = Option<Duration>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("Invalid duration string, supported formats like 5s, 3m, 6h")
+    }
+
+    fn visit_none<E>(self) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(None)
+    }
+
+    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s: String = String::deserialize(deserializer)?;
+        parse_duration(&s)
+            .map(Some)
+            .map_err(serde::de::Error::custom)
     }
 }
