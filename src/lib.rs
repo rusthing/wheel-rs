@@ -1,3 +1,4 @@
+pub mod cmd_utils;
 pub mod dns_utils;
 pub mod file_utils;
 pub mod serde;
