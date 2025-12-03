@@ -2,13 +2,16 @@
 
 [English](README.md)
 
-一个提供文件操作、时间工具和 Duration 序列化支持的 Rust 工具库。
+一个提供各种实用工具的 Rust 库，用于处理常见任务。
 
 ## 功能特性
 
 - **文件工具**: 提供文件扩展名提取和 SHA256 哈希值计算功能
 - **时间工具**: 提供时间戳和时间测量相关工具
-- **Duration 序列化**: 为 `std::time::Duration` 类型提供自定义序列化和反序列化支持
+- **DNS 工具**: 提供 DNS 解析功能
+- **命令行工具**: 提供执行外部命令的功能
+- **序列化工具**: 为多种类型提供自定义序列化和反序列化支持
+- **URN 解析**: 解析和处理统一资源名称
 
 ## 模块说明
 
@@ -22,10 +25,27 @@
 时间相关的工具函数：
 - `get_current_timestamp`: 获取当前时间戳（毫秒）
 
-### `duration_serde` Duration 序列化模块
-为 `Option<Duration>` 提供自定义序列化/反序列化：
-- `serialize`: 将 Duration 序列化为字符串（例如，"5s" 表示 5 秒）
-- `deserialize`: 将字符串反序列化为 Duration
+### `dns_utils` DNS 工具模块
+DNS 解析工具函数：
+- `parse_host`: 将主机名解析为 IP 地址
+- `parse_host_port`: 将主机名和端口解析为 IP 地址和端口
+
+### `cmd` 命令行工具模块
+命令执行和进程管理：
+- `exec`: 执行外部命令
+- `is_process_alive`: 检查进程是否仍在运行
+- `kill_process`: 终止进程
+
+### `serde` 序列化模块
+自定义序列化/反序列化实现：
+- `duration_option_serde`: 用于 `Option<Duration>`
+- `log_filter_option_serde`: 用于 `Option<LevelFilter>`
+- `vec_option_serde`: 用于 `Option<Vec<String>>`
+
+### `urn_utils` URN 工具模块
+URN 解析工具：
+- `Urn`: 解析和表示 URN
+- `Method`: HTTP 方法枚举
 
 ## 使用方法
 
@@ -33,7 +53,7 @@
 
 ```toml
 [dependencies]
-wheel-rs = "0.1.0"
+wheel-rs = "0.4.0"
 ```
 
 然后在您的代码中使用：
@@ -41,7 +61,9 @@ wheel-rs = "0.1.0"
 ```rust
 use wheel_rs::file_utils;
 use wheel_rs::time_utils;
-use wheel_rs::duration_serde;
+use wheel_rs::dns_utils;
+use wheel_rs::cmd::cmd_utils;
+use wheel_rs::serde::duration_option_serde;
 ```
 
 ## 许可证

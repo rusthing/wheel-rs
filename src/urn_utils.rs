@@ -1,3 +1,19 @@
+//! # URN 工具模块
+//! 
+//! 提供统一资源名称（Uniform Resource Name）相关的工具函数和数据结构。
+//! 
+//! 该模块定义了 HTTP 方法枚举和 URN 结构体，用于解析和表示资源定位信息。
+//! 
+//! ## 示例
+//! 
+//! ```
+//! use wheel_rs::urn_utils::{Urn, Method};
+//! 
+//! let urn = Urn::new("GET:example.com".to_string());
+//! assert!(matches!(urn.method, Method::Get));
+//! assert_eq!(urn.url, "example.com");
+//! ```
+
 /// # HTTP 方法枚举
 ///
 /// 定义了常用的 HTTP 方法类型，包括 GET、POST、PUT 和 DELETE
@@ -22,7 +38,12 @@ impl Method {
     ///
     /// # Examples
     ///
-    ///
+    /// ```
+    /// use wheel_rs::urn_utils::Method;
+    /// 
+    /// let method = Method::Get;
+    /// assert_eq!(method.to_string(), "GET");
+    /// ```
     pub fn to_string(&self) -> String {
         match self {
             Method::Get => "GET".to_string(),
@@ -32,6 +53,7 @@ impl Method {
         }
     }
 }
+
 /// # URN 结构体
 ///
 /// 用于表示统一资源名称（Uniform Resource Name），包含方法和 URL 两部分
@@ -67,12 +89,14 @@ impl Urn {
     /// ## 示例
     ///
     /// ```
+    /// use wheel_rs::urn_utils::Urn;
+    /// 
     /// let urn = Urn::new("GET:example.com".to_string());
-    /// assert!(matches!(urn.method, Method::Get));
+    /// assert_eq!(urn.method.to_string(), "GET");
     /// assert_eq!(urn.url, "example.com");
     ///
     /// let urn = Urn::new("http:example.com".to_string());
-    /// assert!(matches!(urn.method, Method::Get));
+    /// assert_eq!(urn.method.to_string(), "GET");
     /// assert_eq!(urn.url, "http:example.com");
     /// ```
     pub fn new(urn: String) -> Self {

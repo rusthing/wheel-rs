@@ -9,8 +9,7 @@
 //! ## 示例
 //!
 //! ```
-//! use std::path::Path;
-//! use your_crate::utils::file_utils::{get_file_ext, calc_hash};
+//! use wheel_rs::file_utils::{get_file_ext, calc_hash};
 //!
 //! // 获取文件扩展名
 //! let ext = get_file_ext("example.TXT");
@@ -43,7 +42,7 @@ use std::path::Path;
 /// ## 示例
 ///
 /// ```
-/// use your_crate::utils::file_utils::get_file_ext;
+/// use wheel_rs::file_utils::get_file_ext;
 ///
 /// assert_eq!(get_file_ext("example.TXT"), "txt");
 /// assert_eq!(get_file_ext("document.pdf"), "pdf");
@@ -84,7 +83,7 @@ pub fn get_file_ext(file_name: &str) -> String {
 ///
 /// ```
 /// use std::path::Path;
-/// use your_crate::utils::file_utils::calc_hash;
+/// use wheel_rs::file_utils::calc_hash;
 ///
 /// // 假设存在一个名为 "test.txt" 的文件
 /// let hash = calc_hash(Path::new("test.txt"));
@@ -123,7 +122,7 @@ pub fn calc_hash(path: &Path) -> String {
 ///
 /// ```
 /// use std::io;
-/// use your_crate::utils::file_utils::is_cross_device_error;
+/// use wheel_rs::file_utils::is_cross_device_error;
 ///
 /// let error = io::Error::new(io::ErrorKind::InvalidInput, "cross-device link");
 /// if is_cross_device_error(&error) {

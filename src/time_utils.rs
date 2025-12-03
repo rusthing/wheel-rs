@@ -1,4 +1,15 @@
 //! # 时间工具
+//!
+//! 提供时间相关的实用工具函数。
+//!
+//! ## 示例
+//!
+//! ```
+//! use wheel_rs::time_utils::get_current_timestamp;
+//!
+//! let timestamp = get_current_timestamp();
+//! println!("当前时间戳: {}", timestamp);
+//! ```
 use std::time::SystemTime;
 
 /// # 获取当前时间戳（毫秒）
@@ -18,7 +29,7 @@ use std::time::SystemTime;
 /// ## 示例
 ///
 /// ```
-/// use your_crate::utils::time_utils::get_current_timestamp;
+/// use wheel_rs::time_utils::get_current_timestamp;
 ///
 /// let timestamp = get_current_timestamp();
 /// println!("当前时间戳: {}", timestamp);

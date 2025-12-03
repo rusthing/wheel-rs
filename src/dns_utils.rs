@@ -1,12 +1,40 @@
+//! # DNS 工具模块
+//!
+//! 提供 DNS 解析相关的实用工具函数。
+//!
+//! ## 示例
+//!
+//! ```
+//! use wheel_rs::dns_utils::parse_host;
+//!
+//! let ip = parse_host("localhost").unwrap();
+//! println!("IP 地址: {}", ip);
+//! ```
+
 use dns_lookup::lookup_host;
 use log::info;
 use std::net::IpAddr;
 
 /// # 解析主机的字符串成IP地址
+///
+/// 尝试将主机名或 IP 地址字符串解析为 [IpAddr] 类型。
+/// 首先尝试直接解析为 IP 地址，如果失败则进行 DNS 解析。
+///
 /// ## 参数
+///
 /// * `host` - 一个字符串切片，表示要解析的主机名或 IP 地址
+///
 /// ## 返回值
-/// 如果解析成功，则返回一个 `IpAddr`; 如果解析失败，则返回一个包含错误信息的 `String`
+///
+/// 如果解析成功，则返回一个 [IpAddr]; 如果解析失败，则返回一个包含错误信息的 [String]
+///
+/// ## 示例
+///
+/// ```
+/// use wheel_rs::dns_utils::parse_host;
+///
+/// let ip = parse_host("127.0.0.1").unwrap();
+/// assert_eq!(ip.to_string(), "127.0.0.1");
 /// ```
 pub fn parse_host(host: &str) -> Result<IpAddr, String> {
     // 尝试直接解析为 IP 地址
@@ -24,33 +52,50 @@ pub fn parse_host(host: &str) -> Result<IpAddr, String> {
 }
 
 /// # 解析主机名和端口号字符串为 IP 地址和端口号
-/// 支持格式:
+/// 
+/// 支持多种格式的主机名和端口号字符串解析:
 /// - "192.168.1.1:8080"
 /// - "example.com:8080"
-/// - \["::1\]:8080" (IPv6)
+/// - "[:\:1]:8080" (IPv6)
 /// - "192.168.1.1" (无端口号，默认端口为0)
 /// - "example.com" (无端口号，默认端口为0)
+///
 /// ## 参数
+/// 
 /// * `host_port` - 包含主机名和可选端口号的字符串
+/// 
 /// ## 返回值
+/// 
 /// 如果解析成功，返回 (IpAddr, u16) 元组；如果解析失败，返回错误信息
 /// 如果未提供端口号，则端口号默认为 0
+/// 
+/// ## 示例
+/// 
+/// ```
+/// use wheel_rs::dns_utils::parse_host_port;
+/// 
+/// let (ip, port) = parse_host_port("localhost:8080").unwrap();
+/// assert_eq!(port, 8080);
+/// ```
+
 pub fn parse_host_port(host_port: &str) -> Result<(IpAddr, u16), String> {
     // 处理 IPv6 地址带端口的情况 [::1]:8080
     if host_port.starts_with('[') {
         if let Some(pos) = host_port.find("]:") {
             let host = &host_port[1..pos];
-            let port = host_port[pos + 2..].parse::<u16>()
+            let port = host_port[pos + 2..]
+                .parse::<u16>()
                 .map_err(|_| format!("Invalid port in address: {}", host_port))?;
             let ip_addr = parse_host(host)?;
             return Ok((ip_addr, port));
         }
     }
-    
+
     // 处理一般的 host:port 格式
     if let Some(pos) = host_port.rfind(':') {
         let host = &host_port[..pos];
-        let port = host_port[pos + 1..].parse::<u16>()
+        let port = host_port[pos + 1..]
+            .parse::<u16>()
             .map_err(|_| format!("Invalid port in address: {}", host_port))?;
         let ip_addr = parse_host(host)?;
         Ok((ip_addr, port))

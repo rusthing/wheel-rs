@@ -2,13 +2,16 @@
 
 [中文](README_CN.md)
 
-A Rust utility library providing file operations, time utilities and Duration serialization support.
+A Rust utility library providing various helpful utilities for common tasks.
 
 ## Features
 
 - **File Utilities**: Functions for file extension extraction and SHA256 hash calculation
 - **Time Utilities**: Tools for working with timestamps and time measurements
-- **Duration Serialization**: Custom serialization and deserialization for `std::time::Duration` types
+- **DNS Utilities**: Tools for DNS resolution
+- **Command Execution**: Execute external commands and manage processes
+- **Serialization**: Custom serialization and deserialization for various types
+- **URN Parsing**: Parse and handle Uniform Resource Names
 
 ## Modules
 
@@ -22,10 +25,27 @@ Provides utility functions for file operations:
 Time-related utilities:
 - `get_current_timestamp`: Get current timestamp in milliseconds
 
-### `duration_serde`
-Custom serialization/deserialization for `Option<Duration>`:
-- `serialize`: Serialize Duration as string (e.g., "5s" for 5 seconds)
-- `deserialize`: Deserialize string to Duration
+### `dns_utils`
+DNS resolution utilities:
+- `parse_host`: Resolve hostname to IP address
+- `parse_host_port`: Resolve hostname and port to IP address and port
+
+### `cmd`
+Command execution and process management:
+- `exec`: Execute external commands
+- `is_process_alive`: Check if a process is still running
+- `kill_process`: Kill a process
+
+### `serde`
+Custom serialization/deserialization implementations:
+- `duration_option_serde`: For `Option<Duration>`
+- `log_filter_option_serde`: For `Option<LevelFilter>`
+- `vec_option_serde`: For `Option<Vec<String>>`
+
+### `urn_utils`
+URN parsing utilities:
+- `Urn`: Parse and represent URNs
+- `Method`: HTTP method enumeration
 
 ## Usage
 
@@ -33,7 +53,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-wheel-rs = "0.1.0"
+wheel-rs = "0.4.0"
 ```
 
 Then use it in your code:
@@ -41,7 +61,9 @@ Then use it in your code:
 ```rust
 use wheel_rs::file_utils;
 use wheel_rs::time_utils;
-use wheel_rs::duration_serde;
+use wheel_rs::dns_utils;
+use wheel_rs::cmd::cmd_utils;
+use wheel_rs::serde::duration_option_serde;
 ```
 
 ## License
@@ -59,7 +81,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **文件工具**: 提供文件扩展名提取和 SHA256 哈希值计算功能
 - **时间工具**: 提供时间戳和时间测量相关工具
-- **Duration 序列化**: 为 `std::time::Duration` 类型提供自定义序列化和反序列化支持
+- **DNS 工具**: 提供 DNS 解析工具
+- **命令执行**: 执行外部命令和进程管理
+- **序列化**: 提供各种类型的自定义序列化和反序列化支持
+- **URN 解析**: 解析和处理统一资源名称
 
 ## 模块说明
 
@@ -73,10 +98,27 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 时间相关的工具函数：
 - `get_current_timestamp`: 获取当前时间戳（毫秒）
 
-### `duration_serde` Duration 序列化模块
-为 `Option<Duration>` 提供自定义序列化/反序列化：
-- `serialize`: 将 Duration 序列化为字符串（例如，"5s" 表示 5 秒）
-- `deserialize`: 将字符串反序列化为 Duration
+### `dns_utils` DNS 工具模块
+DNS 解析工具函数：
+- `parse_host`: 将主机名解析为 IP 地址
+- `parse_host_port`: 将主机名和端口解析为 IP 地址和端口
+
+### `cmd` 命令执行模块
+命令执行和进程管理工具函数：
+- `exec`: 执行外部命令
+- `is_process_alive`: 检查进程是否仍在运行
+- `kill_process`: 杀死进程
+
+### `serde` 序列化模块
+自定义序列化/反序列化实现：
+- `duration_option_serde`: 用于 `Option<Duration>`
+- `log_filter_option_serde`: 用于 `Option<LevelFilter>`
+- `vec_option_serde`: 用于 `Option<Vec<String>>`
+
+### `urn_utils` URN 解析模块
+URN 解析工具函数：
+- `Urn`: 解析和表示 URNs
+- `Method`: HTTP 方法枚举
 
 ## 使用方法
 
@@ -84,7 +126,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ```toml
 [dependencies]
-wheel-rs = "0.1.0"
+wheel-rs = "0.4.0"
 ```
 
 然后在您的代码中使用：
@@ -92,7 +134,9 @@ wheel-rs = "0.1.0"
 ```rust
 use wheel_rs::file_utils;
 use wheel_rs::time_utils;
-use wheel_rs::duration_serde;
+use wheel_rs::dns_utils;
+use wheel_rs::cmd::cmd_utils;
+use wheel_rs::serde::duration_option_serde;
 ```
 
 ## 许可证
