@@ -20,7 +20,11 @@
 
 pub mod cmd;
 pub mod dns_utils;
+pub mod error;
 pub mod file_utils;
 pub mod serde;
 pub mod time_utils;
 pub mod urn_utils;
+
+// 重新导出结构体，简化外部引用
+pub use error::runtime;
