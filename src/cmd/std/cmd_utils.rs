@@ -9,11 +9,11 @@
 
 use crate::cmd::cmd_error::CmdError;
 use log::debug;
-use std::process::{Child, Command, Stdio};
+use std::process::{Child, Command};
 
 /// # 执行外部命令
 ///
-/// 执行指定的外部命令并返回其标准输出。
+/// 执行指定的外部命令并返回其标准输出
 ///
 /// ## 参数
 ///
@@ -27,9 +27,9 @@ use std::process::{Child, Command, Stdio};
 /// ## 示例
 ///
 /// ```
-/// use wheel_rs::cmd::cmd_utils::exec;
+/// use wheel_rs::cmd::std::cmd_utils::exec;
 ///
-/// let output = exec("echo", &["Hello, world!"]);
+/// let output = execute("echo", &["Hello, world!"]);
 /// match output {
 ///     Ok(bytes) => {
 ///         let output_str = String::from_utf8_lossy(&bytes);
@@ -38,7 +38,7 @@ use std::process::{Child, Command, Stdio};
 ///     Err(e) => eprintln!("Command failed: {}", e),
 /// }
 /// ```
-pub fn exec(cmd: &str, args: &[&str]) -> Result<Vec<u8>, CmdError> {
+pub fn execute(cmd: &str, args: &[&str]) -> Result<Vec<u8>, CmdError> {
     debug!("executing command: {} {}", cmd, args.join(" "));
     let output = Command::new(cmd)
         .args(args)
@@ -51,44 +51,6 @@ pub fn exec(cmd: &str, args: &[&str]) -> Result<Vec<u8>, CmdError> {
     }
 
     Ok(output.stdout)
-}
-
-/// # 启动外部命令进程
-///
-/// 启动指定的外部命令进程并返回其子进程句柄。
-///
-/// ## 参数
-///
-/// * `cmd` - 要执行的命令名称
-/// * `args` - 命令参数切片
-///
-/// ## 返回值
-///
-/// 返回命令的子进程句柄，或者包含错误信息的 [CmdError]。
-///
-/// ## 示例
-///
-/// ```
-/// use wheel_rs::cmd::cmd_utils::spawn_cmd;
-///
-/// let child = spawn_cmd("sleep", &["5"]);
-/// match child {
-///     Ok(mut child) => {
-///         // 可以对子进程进行操作
-///         // 记得处理子进程资源
-///         let _ = child.wait();
-///     }
-///     Err(e) => eprintln!("Failed to spawn command: {}", e),
-/// }
-/// ```
-pub fn spawn_cmd(cmd: &str, args: &[&str]) -> Result<tokio::process::Child, CmdError> {
-    debug!("spawn command: {} {}", cmd, args.join(" "));
-    Ok(tokio::process::Command::new(cmd) // 创建新的命令实例
-        .args(args) // 添加命令参数
-        .stdout(Stdio::piped()) // 将标准输出重定向到管道，以便父进程可以读取
-        .stderr(Stdio::null()) // 丢弃标准错误输出
-        .spawn() // 启动命令并返回子进程句柄
-        .map_err(|e| CmdError::ExecuteFail(e))?) // 将可能的错误转换为CmdError类型
 }
 
 /// # 检查进程是否还活着
