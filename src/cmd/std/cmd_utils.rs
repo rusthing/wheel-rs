@@ -13,7 +13,8 @@ use std::process::{Child, Command};
 
 /// # 执行外部命令
 ///
-/// 执行指定的外部命令并返回其标准输出
+/// 执行指定的外部命令并返回其标准输出。此函数会等待命令执行完成，
+/// 并检查命令执行结果状态。
 ///
 /// ## 参数
 ///
@@ -24,10 +25,14 @@ use std::process::{Child, Command};
 ///
 /// 返回命令的标准输出字节向量，或者包含错误信息的 [CmdError]。
 ///
+/// ## 错误处理
+///
+/// 如果命令执行失败或返回非零退出码，则返回相应的 [CmdError]。
+///
 /// ## 示例
 ///
 /// ```
-/// use wheel_rs::cmd::std::cmd_utils::exec;
+/// use wheel_rs::cmd::std::cmd_utils::execute;
 ///
 /// let output = execute("echo", &["Hello, world!"]);
 /// match output {
@@ -55,7 +60,7 @@ pub fn execute(cmd: &str, args: &[&str]) -> Result<Vec<u8>, CmdError> {
 
 /// # 检查进程是否还活着
 ///
-/// 检查指定的子进程是否仍在运行。
+/// 检查指定的子进程是否仍在运行。此函数不会阻塞，也不会消耗进程资源。
 ///
 /// ## 参数
 ///
@@ -75,7 +80,8 @@ pub fn is_process_alive(child: &mut Child) -> bool {
 
 /// # 杀死进程
 ///
-/// 强制终止指定的子进程并等待其完全退出。
+/// 强制终止指定的子进程并等待其完全退出。调用此函数会获取 `Child` 实例
+/// 的所有权，并在完成后释放该资源。
 ///
 /// ## 参数
 ///
@@ -84,9 +90,55 @@ pub fn is_process_alive(child: &mut Child) -> bool {
 /// ## 返回值
 ///
 /// 如果成功杀死进程则返回 `Ok(())`，否则返回包含错误信息的 Result。
+///
+/// ## 错误处理
+///
+/// 如果杀死进程过程中发生错误，则返回相应的错误信息。
 pub fn kill_process(mut child: Child) -> Result<(), Box<dyn std::error::Error>> {
     debug!("killing process: {}", child.id());
     child.kill()?;
     child.wait()?;
+    Ok(())
+}
+
+/// # 根据进程ID杀死进程
+///
+/// 根据指定的进程ID强制终止相应进程。
+///
+/// ## 参数
+///
+/// * `pid` - 要杀死的进程ID
+///
+/// ## 返回值
+///
+/// 如果成功杀死进程则返回 `Ok(())`，否则返回包含错误信息的 Result。
+///
+/// ## 平台差异
+///
+/// * Unix系统: 使用 `kill -9 <pid>` 命令
+/// * Windows系统: 使用 `taskkill /F /PID <pid>` 命令
+///
+/// ## 错误处理
+///
+/// 如果杀死进程过程中发生错误，则返回相应的错误信息。
+pub fn kill_process_by_id(pid: u32) -> std::io::Result<()> {
+    debug!("killing process by id: {}", pid);
+    #[cfg(unix)]
+    {
+        Command::new("kill")
+            .arg("-9")
+            .arg(&pid.to_string())
+            .output()?;
+    }
+
+    #[cfg(windows)]
+    {
+        Command::new("taskkill")
+            .arg("/F")
+            .arg("/PID")
+            .arg(&pid.to_string())
+            .output()?;
+    }
+
     Ok(())
 }

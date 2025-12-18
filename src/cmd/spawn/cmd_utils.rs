@@ -10,20 +10,23 @@ use crate::cmd::cmd_error::CmdError;
 use bytes::Bytes;
 use log::{debug, error, trace, warn};
 use std::process::Stdio;
-use std::sync::mpsc;
 use tokio::io::{AsyncReadExt, BufReader};
 use tokio::process::{Child, ChildStdout, Command};
 use tokio::sync::broadcast::Sender;
+use tokio::sync::oneshot;
+
 /// # 执行外部命令进程
 ///
-/// 执行指定的外部命令进程并返回其子进程句柄
+/// 执行指定的外部命令进程并返回其子进程句柄。注意：调用此函数后，
+/// `Child` 实例的所有权将转移给调用者，同时 `Child.stdout` 的所有权
+/// 会被移动用于异步读取。
 ///
 /// ## 参数
 ///
 /// * `cmd` - 要执行的命令名称
 /// * `args` - 命令参数切片
 /// * `data_sender` - 用于发送命令输出数据的广播发送者
-/// * `process_end_sender` - 用于发送进程结束信号的通道发送者
+/// * `process_exit_sender` - 用于发送进程结束信号的通道发送者
 /// * `read_buffer_size` - 可选的读取缓冲区大小
 ///
 /// ## 返回值
@@ -38,14 +41,14 @@ use tokio::sync::broadcast::Sender;
 /// use std::sync::mpsc;
 ///
 /// let (data_sender, _) = broadcast::channel(100);
-/// let (process_end_sender, _) = mpsc::channel();
-/// let child = execute("ls", &["-l"], data_sender, process_end_sender, None);
+/// let (process_exit_sender, _) = mpsc::channel();
+/// let child = execute("ls", &["-l"], data_sender, process_exit_sender, None);
 /// ```
 pub fn execute(
     cmd: &str,
     args: &[&str],
     data_sender: Sender<Bytes>,
-    process_end_sender: mpsc::Sender<()>,
+    process_exit_sender: oneshot::Sender<()>,
     read_buffer_size: Option<usize>,
 ) -> Result<Child, CmdError> {
     debug!("command execute start: {} {}", cmd, args.join(" "));
@@ -60,13 +63,13 @@ pub fn execute(
     let stdout = child
         .stdout
         .take()
-        .ok_or_else(|| CmdError::TakeStdoutError("获取不到命令输出".to_string()))?;
+        .ok_or_else(|| CmdError::TakeStdoutError("command process stdout not piped".to_string()))?;
 
     // 异步读取输出
     tokio::spawn(read_stdout(
         stdout,
         data_sender,
-        process_end_sender,
+        process_exit_sender,
         read_buffer_size,
     ));
 
@@ -81,7 +84,7 @@ pub fn execute(
 ///
 /// * `stdout` - 子进程的输出流
 /// * `data_sender` - 用于转发输出数据的广播发送者
-/// * `process_end_sender` - 用于发送进程结束信号的通道发送者
+/// * `process_exit_sender` - 用于发送进程结束信号的通道发送者
 /// * `read_buffer_size` - 可选的读取缓冲区大小
 ///
 /// ## 返回值
@@ -90,7 +93,7 @@ pub fn execute(
 async fn read_stdout(
     stdout: ChildStdout,
     data_sender: Sender<Bytes>,
-    process_end_sender: mpsc::Sender<()>,
+    process_exit_sender: oneshot::Sender<()>,
     read_buffer_size: Option<usize>,
 ) {
     let mut reader = BufReader::new(stdout);
@@ -98,32 +101,33 @@ async fn read_stdout(
     loop {
         match reader.read(&mut buffer).await {
             Ok(0) => {
-                warn!("命令进程已经停止");
+                debug!("command process stdout closed");
                 break;
             }
             Ok(n) => {
                 // 有订阅者才发送消息
                 let receiver_count = data_sender.receiver_count();
                 if receiver_count > 0 {
-                    debug!("命令进程订阅者数量: {}", receiver_count);
+                    debug!("command process receiver count: {}", receiver_count);
                     let data = Bytes::copy_from_slice(&buffer[..n]);
                     let _ = data_sender
                         .send(data)
                         .map_err(|e| warn!("发送命令进程的输出给接收者失败: {}", e));
                 }
+                // sleep(Duration::from_millis(1)).await;
             }
             Err(e) => {
-                error!("从命令进程读取输出流异常: {}", e);
+                error!("read command process stdout error: {}", e);
                 break;
             }
         }
     }
-    let _ = process_end_sender.send(());
+    let _ = process_exit_sender.send(());
 }
 
 /// # 检查进程是否还活着
 ///
-/// 检查指定的子进程是否仍在运行。
+/// 检查指定的子进程是否仍在运行。此函数不会阻塞，也不会消耗进程资源。
 ///
 /// ## 参数
 ///
@@ -150,7 +154,8 @@ pub fn is_process_alive(child: &mut Child) -> Result<bool, CmdError> {
 
 /// # 杀死进程
 ///
-/// 强制终止指定的子进程并等待其完全退出。
+/// 强制终止指定的子进程并等待其完全退出。调用此函数会获取 `Child` 实例
+/// 的所有权，并在完成后释放该资源。
 ///
 /// ## 参数
 ///
@@ -169,7 +174,7 @@ pub async fn kill_process(mut child: Child) -> Result<(), CmdError> {
         child.id().ok_or_else(|| CmdError::EmptyId)?
     );
     Ok(child.kill().await.map_err(|e| {
-        error!("杀死进程失败: {}", e);
+        error!("kill process fail: {}", e);
         CmdError::KillFail(e)
     })?)
 }
