@@ -114,7 +114,6 @@ async fn read_stdout(
                         .send(data)
                         .map_err(|e| warn!("发送命令进程的输出给接收者失败: {}", e));
                 }
-                // sleep(Duration::from_millis(1)).await;
             }
             Err(e) => {
                 error!("read command process stdout error: {}", e);
