@@ -133,13 +133,8 @@ pub fn is_cross_device_error(err: &io::Error) -> bool {
     match err.kind() {
         // 在 Unix 系统上，跨设备错误通常表现为 InvalidInput
         #[cfg(unix)]
-        io::ErrorKind::InvalidInput => {
-            // 进一步检查错误码是否为 EXDEV (18)
-            if let Some(raw_os_error) = err.raw_os_error() {
-                raw_os_error == 18 // EXDEV 错误码
-            } else {
-                false
-            }
+        io::ErrorKind::CrossesDevices => {
+            true
         }
         // 在 Windows 系统上，跨设备错误可能表现为 Other 或其他类型
         #[cfg(windows)]
