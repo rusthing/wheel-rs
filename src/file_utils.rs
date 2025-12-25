@@ -131,7 +131,7 @@ pub fn calc_hash(path: &Path) -> String {
 /// ```
 pub fn is_cross_device_error(err: &io::Error) -> bool {
     match err.kind() {
-        // 在 Unix 系统上，跨设备错误通常表现为 InvalidInput
+        // 在 Unix 系统上，跨设备错误通常表现为 CrossesDevices
         #[cfg(unix)]
         io::ErrorKind::CrossesDevices => {
             true
