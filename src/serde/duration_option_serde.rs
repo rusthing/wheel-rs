@@ -36,11 +36,11 @@ use std::time::Duration;
 /// let serialized = serde_json::to_string(&duration).unwrap();
 /// assert_eq!(serialized, "\"5s\"");
 /// ```
-pub fn serialize<S>(dur: &Option<Duration>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(duration: &Option<Duration>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    if let Some(d) = dur {
+    if let Some(d) = duration {
         serializer.serialize_str(&format!("{}s", d.as_secs()))
     } else {
         serializer.serialize_none()
