@@ -27,7 +27,7 @@ use tokio::sync::oneshot;
 /// * `args` - 命令参数切片
 /// * `data_sender` - 用于发送命令输出数据的广播发送者
 /// * `process_exit_sender` - 用于发送进程结束信号的通道发送者
-/// * `read_buffer_size` - 可选的读取缓冲区大小
+/// * `read_buffer_size` - 读取缓冲区大小
 ///
 /// ## 返回值
 ///
@@ -49,7 +49,7 @@ pub fn execute(
     args: &[&str],
     data_sender: Sender<Bytes>,
     process_exit_sender: oneshot::Sender<()>,
-    read_buffer_size: Option<usize>,
+    read_buffer_size: usize,
 ) -> Result<Child, CmdError> {
     debug!("command execute start: {} {}", cmd, args.join(" "));
     let mut child = Command::new(cmd) // 创建新的命令实例
@@ -85,7 +85,7 @@ pub fn execute(
 /// * `stdout` - 子进程的输出流
 /// * `data_sender` - 用于转发输出数据的广播发送者
 /// * `process_exit_sender` - 用于发送进程结束信号的通道发送者
-/// * `read_buffer_size` - 可选的读取缓冲区大小
+/// * `read_buffer_size` - 读取缓冲区大小
 ///
 /// ## 返回值
 ///
@@ -94,10 +94,10 @@ async fn read_stdout(
     stdout: ChildStdout,
     data_sender: Sender<Bytes>,
     process_exit_sender: oneshot::Sender<()>,
-    read_buffer_size: Option<usize>,
+    read_buffer_size: usize,
 ) {
     let mut reader = BufReader::new(stdout);
-    let mut buffer = vec![0u8; read_buffer_size.unwrap_or(65536)];
+    let mut buffer = vec![0u8; read_buffer_size];
     loop {
         match reader.read(&mut buffer).await {
             Ok(0) => {
