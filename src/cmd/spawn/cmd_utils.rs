@@ -8,7 +8,7 @@
 //! - 杀死进程
 use crate::cmd::cmd_error::CmdError;
 use bytes::Bytes;
-use log::{debug, error, warn};
+use log::{debug, error, trace, warn};
 use std::process::Stdio;
 use tokio::io::{AsyncReadExt, BufReader};
 use tokio::process::{Child, ChildStdout, Command};
@@ -108,7 +108,7 @@ async fn read_stdout(
                 // 有订阅者才发送消息
                 let receiver_count = data_sender.receiver_count();
                 if receiver_count > 0 {
-                    debug!("command process receiver count: {}", receiver_count);
+                    trace!("command process receiver count: {}", receiver_count);
                     let data = Bytes::copy_from_slice(&buffer[..n]);
                     let _ = data_sender.send(data).map_err(|e| {
                         warn!("Failed to send command process output to receiver: {}", e)
