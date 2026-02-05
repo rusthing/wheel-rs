@@ -1,6 +1,6 @@
 [package]
 name = "wheel-rs"
-version = "1.1.1"
+version = "1.1.2"
 edition = "2024"
 authors = ["zbz"]
 keywords = ["tools", "utils"]
@@ -13,10 +13,11 @@ readme = "README.md"
 
 [dependencies]
 log = "0.4.29"
-thiserror = "2.0.17"
+thiserror = "2.0.18"
 serde = "1.0.228"
 humantime = "2.3.0"
 sha2 = "0.10.9"
 dns-lookup = "3.0.1"
 tokio = { version = "1.49.0", features = ["process", "io-util", "sync", "rt", "time"] }
-bytes = "1.9.0"
+bytes = "1.11.1"
+nix = "0.31.1"

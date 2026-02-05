@@ -1,4 +1,5 @@
-#[derive(Debug, thiserror::Error)]
+use thiserror::Error;
+#[derive(Debug, Error)]
 pub enum Error {
     #[error("运行时错误: {0}")]
     RuntimeError(String),
