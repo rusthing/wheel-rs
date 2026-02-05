@@ -18,6 +18,7 @@ serde = "1.0.228"
 humantime = "2.3.0"
 sha2 = "0.10.9"
 dns-lookup = "3.0.1"
-tokio = { version = "1.49.0", features = ["process", "io-util", "sync", "rt", "time"] }
+tokio = { version = "1.49.0", features = ["macros", "signal", "process", "io-util", "sync", "rt", "time"] }
 bytes = "1.11.1"
-nix = "0.31.1"
+nix = { version = "0.31.1", features = ["signal"] }
+libc = "0.2.180"

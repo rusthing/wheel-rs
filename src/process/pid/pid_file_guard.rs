@@ -1,5 +1,5 @@
-use crate::pid::pid_error::PidError;
-use crate::pid::pid_error::PidError::{
+use crate::process::pid::pid_error::PidError;
+use crate::process::pid::pid_error::PidError::{
     CreatePidFileError, DeletePidFileError, InvalidPidFilePath, OpenPidFileError,
     ParsePidFileContentError, ReadPidFileError, WritePidFileError,
 };

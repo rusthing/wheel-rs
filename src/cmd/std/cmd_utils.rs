@@ -107,7 +107,7 @@ pub fn kill_process(mut child: Child) -> Result<(), Box<dyn std::error::Error>> 
 ///
 /// ## 参数
 ///
-/// * `pid` - 要杀死的进程ID
+/// * `process` - 要杀死的进程ID
 ///
 /// ## 返回值
 ///
@@ -115,8 +115,8 @@ pub fn kill_process(mut child: Child) -> Result<(), Box<dyn std::error::Error>> 
 ///
 /// ## 平台差异
 ///
-/// * Unix系统: 使用 `kill -9 <pid>` 命令
-/// * Windows系统: 使用 `taskkill /F /PID <pid>` 命令
+/// * Unix系统: 使用 `kill -9 <process>` 命令
+/// * Windows系统: 使用 `taskkill /F /PID <process>` 命令
 ///
 /// ## 错误处理
 ///
