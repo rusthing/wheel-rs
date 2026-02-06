@@ -6,7 +6,8 @@
 use crate::process::ProcessError::{CheckProcessError, ProcessExitWaitTimeout};
 use crate::process::{send_signal_by_instruction, ProcessError};
 use std::io;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use tokio::time::timeout;
 
 /// # 终止进程
 ///
@@ -71,14 +72,13 @@ async fn wait_for_process_exit(
     wait_timeout: Duration,
     retry_interval: Duration,
 ) -> Result<(), ProcessError> {
-    let start_time = Instant::now();
-    while check_process(pid)? {
-        if start_time.elapsed() >= wait_timeout {
-            Err(ProcessExitWaitTimeout(pid))?
-        }
-        tokio::time::sleep(retry_interval).await;
-    }
-    Ok(())
+    timeout(wait_timeout, async move {
+        Ok(while check_process(pid)? {
+            tokio::time::sleep(retry_interval).await;
+        })
+    })
+    .await
+    .map_err(|_| ProcessExitWaitTimeout(pid))?
 }
 
 /// # 检查进程是否存在
