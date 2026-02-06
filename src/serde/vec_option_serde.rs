@@ -63,7 +63,7 @@ impl<'de> Visitor<'de> for OptionVisitor {
     type Value = Option<Vec<String>>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a string or array of strings")
+        formatter.write_str("a string, comma-separated string, or array of strings")
     }
 
     /// 处理 None 值的情况
@@ -80,18 +80,18 @@ impl<'de> Visitor<'de> for OptionVisitor {
         D: Deserializer<'de>,
     {
         // 使用 deserialize_any 来处理不同的类型
-        deserializer.deserialize_any(StringOrVecVisitor)
+        deserializer.deserialize_any(StringOrVecOptionVisitor)
     }
 }
 
 /// # 用于处理字符串或字符串数组的访问器
-struct StringOrVecVisitor;
+struct StringOrVecOptionVisitor;
 
-impl<'de> Visitor<'de> for StringOrVecVisitor {
+impl<'de> Visitor<'de> for StringOrVecOptionVisitor {
     type Value = Option<Vec<String>>;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a string or array of strings")
+        formatter.write_str("a string, comma-separated string, or array of strings")
     }
 
     /// # 处理字符串引用（&str）类型
@@ -108,7 +108,11 @@ impl<'de> Visitor<'de> for StringOrVecVisitor {
         E: de::Error,
     {
         // 将字符串通过逗号分割转换为 vec
-        let vec: Vec<_> = v.split(',').map(|s| s.trim().to_string()).collect();
+        let vec: Vec<_> = v
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
         Ok(Some(vec))
     }
 
@@ -120,6 +124,10 @@ impl<'de> Visitor<'de> for StringOrVecVisitor {
         let mut vec = Vec::new();
         // 逐个读取序列中的元素
         while let Some(element) = seq.next_element::<String>()? {
+            let element = element.trim().to_string();
+            if element.is_empty() {
+                continue;
+            }
             vec.push(element);
         }
         Ok(Some(vec))
