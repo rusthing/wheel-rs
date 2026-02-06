@@ -15,8 +15,8 @@ use std::time::{Duration, Instant};
 /// ## 参数
 ///
 /// * `pid` - 目标进程ID。
-/// * `retry_interval` - 重试间隔时间，用于控制检查频率。
 /// * `wait_timeout` - 等待超时时间，超过该时间将返回错误。
+/// * `retry_interval` - 重试间隔时间，用于控制检查频率。
 ///
 /// ## 返回值
 ///
@@ -34,17 +34,17 @@ use std::time::{Duration, Instant};
 ///
 /// #[tokio::main]
 /// async fn main() {
-/// let result = terminate_process(1234, Duration::from_secs(1), Duration::from_secs(10)).await;
+/// let result = terminate_process(1234, Duration::from_secs(10), Duration::from_secs(1)).await;
 /// assert!(result.is_ok());
 /// }
 /// ```
 pub async fn terminate_process(
     pid: i32,
-    retry_interval: Duration,
     wait_timeout: Duration,
+    retry_interval: Duration,
 ) -> Result<(), ProcessError> {
     send_signal_by_instruction("terminate", pid).expect("Failed to send signal: ");
-    wait_for_process_exit(pid, retry_interval, wait_timeout).await?;
+    wait_for_process_exit(pid, wait_timeout, retry_interval).await?;
     Ok(())
 }
 
@@ -55,8 +55,8 @@ pub async fn terminate_process(
 /// ## 参数
 ///
 /// * `pid` - 目标进程ID。
-/// * `retry_interval` - 重试间隔时间，用于控制检查频率。
 /// * `wait_timeout` - 等待超时时间，超过该时间将返回错误。
+/// * `retry_interval` - 重试间隔时间，用于控制检查频率。
 ///
 /// ## 返回值
 ///
@@ -68,8 +68,8 @@ pub async fn terminate_process(
 /// - `wait_timeout` 应根据实际需求合理设置，避免无限等待。
 async fn wait_for_process_exit(
     pid: i32,
-    retry_interval: Duration,
     wait_timeout: Duration,
+    retry_interval: Duration,
 ) -> Result<(), ProcessError> {
     let start_time = Instant::now();
     while check_process(pid)? {
