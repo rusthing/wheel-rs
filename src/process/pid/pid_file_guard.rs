@@ -1,149 +1,62 @@
-use crate::process::pid::pid_error::PidError;
-use crate::process::pid::pid_error::PidError::{
-    CreatePidFileError, DeletePidFileError, InvalidPidFilePath, OpenPidFileError,
-    ParsePidFileContentError, ReadPidFileError, WritePidFileError,
-};
-use log::{debug, info, warn};
-use nix::libc::pid_t;
-use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::path::PathBuf;
-use std::process;
+//! # PID 文件守卫模块
+//!
+//! 本模块提供了 `PidFileGuard` 结构体，用于管理 PID 文件的生命周期。
+//! 在对象被销毁时会自动清理对应的 PID 文件，避免残留文件占用资源。
 
-/// # PID文件守卫
+use crate::process::pid::pid_utils::delete_pid_file_if_my_process;
+use crate::process::{write_pid, PidError};
+use log::warn;
+use std::path::PathBuf;
+
+/// # PID 文件守卫
 ///
-/// 用于管理PID文件的生命周期，在对象被销毁时自动清理PID文件
+/// 用于管理 PID 文件的生命周期，在对象被销毁时自动清理 PID 文件。
+/// 通过实现 `Drop` trait，确保在作用域结束时自动执行清理逻辑。
 pub struct PidFileGuard {
+    /// 存储 PID 文件的路径
     pid_file_path: PathBuf,
 }
 
 impl Drop for PidFileGuard {
-    /// # 自动清理PID文件
+    /// # 自动清理 PID 文件
     ///
-    /// 当PidFileGuard超出作用域时自动调用，删除对应的PID文件
+    /// 当 `PidFileGuard` 超出作用域时自动调用此方法，尝试删除对应的 PID 文件。
+    /// 如果删除失败，会记录警告日志但不会 panic。
     fn drop(&mut self) {
-        let _ = self
-            .delete_pid_file_if_my_process()
+        let _ = delete_pid_file_if_my_process(&self.pid_file_path)
             .map_err(|e| warn!("Failed to delete PID file: {}", e));
     }
 }
 
 impl PidFileGuard {
-    /// # 读取PID文件中的进程ID
+    /// # 创建新的 PID 文件守卫实例
     ///
-    /// 从PID文件中读取保存的进程ID，如果文件不存在或格式错误则返回None
+    /// 构造一个新的 `PidFileGuard` 实例，并创建对应的 PID 文件。
     ///
-    /// ## Returns
+    /// ## 参数
+    /// - `app_file_path`: 应用程序文件的基础路径，用于生成 `.pid` 文件路径。
     ///
-    /// 返回Option<i32>，包含读取到的PID或None
-    pub fn read_pid(&self) -> Result<Option<pid_t>, PidError> {
-        let pid_file_path = &self.pid_file_path;
-        debug!("Reading PID from {pid_file_path:?}...");
-
-        // 获取有效的路径
-        let path = pid_file_path
-            .to_str()
-            .ok_or(InvalidPidFilePath(pid_file_path.clone()))?;
-
-        // 检查文件是否存在
-        if !pid_file_path.exists() {
-            return Ok(None);
-        }
-
-        // 安全地打开和读取文件
-        let pid_file = File::open(path).map_err(|_| OpenPidFileError(path.to_string()))?;
-        let reader = BufReader::new(pid_file);
-        let pid = reader
-            .lines()
-            .next()
-            .ok_or(ReadPidFileError(path.to_string()))?
-            .map_err(|_| ReadPidFileError(path.to_string()))?
-            .trim()
-            .parse::<pid_t>()
-            .map_err(|_| ParsePidFileContentError(path.to_string()))?;
-        Ok(Some(pid))
-    }
-
-    /// # 将当前进程ID写入PID文件
+    /// ## 返回值
+    /// - 成功时返回 `Ok(PidFileGuard)` 实例。
+    /// - 失败时返回 `Err(PidError)`，表示无法创建或写入 PID 文件。
     ///
-    /// 创建一个PID文件并将当前进程的ID写入其中，同时返回一个PidFileGuard来管理文件的生命周期。
-    /// 当PidFileGuard超出作用域时，会自动清理PID文件。
+    /// ## 示例
+    /// ```rust
+    /// use std::path::PathBuf;
+    /// use crate::process::pid::PidFileGuard;
     ///
-    /// ## Returns
-    ///
-    /// 返回 `PidFileGuard` 实例，用于管理PID文件的生命周期
-    ///
-    /// ## Examples
-    ///
+    /// let app_path = PathBuf::from("/tmp/my_app");
+    /// let guard = PidFileGuard::new(&app_path);
     /// ```
-    /// let guard = write_pid();
-    /// // 当guard超出作用域时，PID文件会被自动删除
-    /// ```
-    pub fn write_pid(&self) -> Result<(), PidError> {
-        let pid_file_path = &self.pid_file_path;
-        let pid = process::id();
-        debug!("Writing PID {pid} to {pid_file_path:?}...");
+    pub fn new(app_file_path: &PathBuf) -> Result<Self, PidError> {
+        // 克隆基础路径并添加 `.pid` 扩展名
+        let mut pid_file_path = app_file_path.clone();
+        pid_file_path.set_extension("pid");
 
-        // 获取有效的路径
-        let path = pid_file_path
-            .to_str()
-            .ok_or(InvalidPidFilePath(pid_file_path.clone()))?;
+        // 写入当前进程的 PID 到文件中
+        write_pid(&pid_file_path)?;
 
-        // 安全地创建和写入PID文件
-        let pid_file = File::create(path).map_err(|_| CreatePidFileError(path.to_string()))?;
-        let mut writer = BufWriter::new(pid_file);
-        writer
-            .write_all(pid.to_string().as_bytes())
-            .map_err(|_| WritePidFileError(path.to_string()))?;
-        Ok(())
-    }
-
-    ///
-    /// 删除PID文件，如果该文件是由当前进程创建的。
-    ///
-    /// 该函数首先尝试读取PID文件中的PID。如果文件存在并且其中的PID与当前进程的PID匹配，
-    /// 则删除此PID文件。这通常用于确保在进程退出时清理其遗留的PID文件，避免影响后续相同服务的启动。
-    ///
-    /// # Returns
-    ///
-    /// - `Ok(())` 如果操作成功完成或没有需要删除的PID文件。
-    /// - `Err(Box<dyn std::error::Error>)` 如果在读取或删除PID文件过程中发生错误。
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let result = delete_pid_file_if_my_process();
-    /// assert!(result.is_ok());
-    /// ```
-    /// 注意: 示例假定当前环境允许读写PID文件，并且当前进程确实拥有一个PID文件。
-    ///
-    fn delete_pid_file_if_my_process(&self) -> Result<(), PidError> {
-        // 如果 PID 文件存在且是当前进程创建的，则删除
-        if let Ok(Some(pid)) = self.read_pid()
-            && pid == process::id() as pid_t
-        {
-            Self::delete_pid_file(&self.pid_file_path)?;
-        }
-        Ok(())
-    }
-
-    /// # 删除PID文件
-    ///
-    /// 删除应用程序对应的PID文件。通常在程序正常退出时调用。
-    ///
-    /// ## Examples
-    ///
-    /// ```
-    /// delete_pid(); // 删除PID文件
-    /// ```
-    pub(crate) fn delete_pid_file(pid_file_path: &PathBuf) -> Result<(), PidError> {
-        info!("Deleting PID file: {pid_file_path:?} ...");
-        // 获取有效的路径
-        let path = pid_file_path
-            .to_str()
-            .ok_or(InvalidPidFilePath(pid_file_path.clone()))?;
-
-        std::fs::remove_file(pid_file_path).map_err(|_| DeletePidFileError(path.to_string()))?;
-        Ok(())
+        // 返回成功的守卫实例
+        Ok(Self { pid_file_path })
     }
 }

@@ -1,63 +1,80 @@
 //! # 进程管理工具函数
 //!
 //! 提供进程终止、状态检查等核心功能的实用工具函数。
+//! 该模块封装了底层系统调用，简化了进程管理操作，适用于需要监控或控制外部进程的应用场景。
 
-use crate::process::ProcessError::{CheckProcessError, ProcessExitError};
+use crate::process::ProcessError::{CheckProcessError, ProcessExitWaitTimeout};
 use crate::process::{send_signal_by_instruction, ProcessError};
 use std::io;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// # 终止进程
 ///
-/// 发送终止信号给指定进程并等待其退出。
+/// 发送终止信号给指定进程并等待其退出。该函数是异步的，需在 `tokio` 运行时环境中调用。
 ///
 /// ## 参数
 ///
-/// * `pid` - 目标进程ID
-/// * `max_retries` - 最大重试次数
-/// * `retry_interval` - 重试间隔时间
+/// * `pid` - 目标进程ID。
+/// * `retry_interval` - 重试间隔时间，用于控制检查频率。
+/// * `wait_timeout` - 等待超时时间，超过该时间将返回错误。
 ///
 /// ## 返回值
 ///
-/// 成功时返回 `Ok(())`，失败时返回相应的错误。
+/// * `Ok(())` - 进程成功终止。
+/// * `Err(ProcessError)` - 进程终止失败或等待超时。
 ///
 /// ## 错误处理
 ///
-/// 如果进程在最大重试次数后仍未退出，将返回 [ProcessExitError] 错误。
+/// 如果进程在 `wait_timeout` 时间内未退出，将返回 [ProcessExitWaitTimeout] 错误。
+///
+/// ## 示例
+/// ```rust
+/// use std::time::Duration;
+/// use crate::process::terminate_process;
+///
+/// #[tokio::main]
+/// async fn main() {
+/// let result = terminate_process(1234, Duration::from_secs(1), Duration::from_secs(10)).await;
+/// assert!(result.is_ok());
+/// }
+/// ```
 pub async fn terminate_process(
     pid: i32,
-    max_retries: u32,
     retry_interval: Duration,
+    wait_timeout: Duration,
 ) -> Result<(), ProcessError> {
     send_signal_by_instruction("terminate", pid).expect("Failed to send signal: ");
-    wait_for_process_exit(pid, max_retries, retry_interval).await?;
+    wait_for_process_exit(pid, retry_interval, wait_timeout).await?;
     Ok(())
 }
 
 /// # 等待进程退出
 ///
-/// 循环检查进程是否存在，直到进程退出或达到最大重试次数。
+/// 循环检查指定进程是否存在，直到进程退出或等待超时。该函数是异步的，内部使用 `tokio::time::sleep` 实现延迟检查。
 ///
 /// ## 参数
 ///
-/// * `pid` - 目标进程ID
-/// * `max_retries` - 最大重试次数
-/// * `retry_interval` - 重试间隔时间
+/// * `pid` - 目标进程ID。
+/// * `retry_interval` - 重试间隔时间，用于控制检查频率。
+/// * `wait_timeout` - 等待超时时间，超过该时间将返回错误。
 ///
 /// ## 返回值
 ///
-/// 成功时返回 `Ok(())`，如果超过重试次数则返回 [ProcessExitError] 错误。
+/// * `Ok(())` - 进程成功退出。
+/// * `Err(ProcessExitWaitTimeout)` - 等待超时。
+///
+/// ## 性能提示
+/// - `retry_interval` 不宜过短，以免频繁调用系统API造成性能损耗。
+/// - `wait_timeout` 应根据实际需求合理设置，避免无限等待。
 async fn wait_for_process_exit(
     pid: i32,
-    max_retries: u32,
     retry_interval: Duration,
+    wait_timeout: Duration,
 ) -> Result<(), ProcessError> {
-    let mut current_retry_count = 0;
+    let start_time = Instant::now();
     while check_process(pid)? {
-        // 进程仍然存在，继续等待
-        current_retry_count += 1;
-        if current_retry_count >= max_retries {
-            Err(ProcessExitError(pid))?
+        if start_time.elapsed() >= wait_timeout {
+            Err(ProcessExitWaitTimeout(pid))?
         }
         tokio::time::sleep(retry_interval).await;
     }
@@ -66,20 +83,27 @@ async fn wait_for_process_exit(
 
 /// # 检查进程是否存在
 ///
-/// 通过发送信号0来检查指定PID的进程是否存在。
+/// 通过发送信号0来检查指定PID的进程是否存在。信号0不会真正发送信号，仅用于验证进程状态。
 ///
 /// ## 参数
 ///
-/// * `pid` - 要检查的进程ID
+/// * `pid` - 要检查的进程ID。
 ///
 /// ## 返回值
 ///
-/// 返回 `Ok(true)` 表示进程存在，`Ok(false)` 表示进程不存在，
-/// 错误时返回 [CheckProcessError]。
+/// * `Ok(true)` - 进程存在。
+/// * `Ok(false)` - 进程不存在。
+/// * `Err(CheckProcessError)` - 检查过程中发生错误。
 ///
 /// ## 安全性说明
 ///
-/// 此函数使用 `unsafe` 块调用系统级API，但已被妥善封装以确保内存安全。
+/// 此函数使用 `unsafe` 块调用系统级API（`libc::kill`），但已被妥善封装以确保内存安全。
+/// 调用者无需担心未定义行为或内存泄漏问题。
+///
+/// ## 错误类型
+/// - `ESRCH`: 进程不存在。
+/// - `EPERM`: 进程存在但无权限访问。
+/// - 其他错误: 返回具体错误信息。
 pub fn check_process(pid: i32) -> Result<bool, ProcessError> {
     unsafe {
         let result = libc::kill(pid, 0); // 信号 0

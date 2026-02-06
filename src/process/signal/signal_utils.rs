@@ -11,26 +11,27 @@ use tokio::signal::unix::{signal, SignalKind};
 ///
 /// ## 参数
 ///
-/// * `signal_str` - 信号名称字符串，如 "stop", "reload", "quit", "kill" 等
-/// * `pid` - 进程ID，指定要发送信号的目标进程
+/// * `instruction` - 信号名称字符串，如 `"hangup"`, `"stop"`, `"kill"` 等。
+/// * `pid` - 进程ID，指定要发送信号的目标进程。
 ///
 /// ## 返回值
 ///
-/// * `Ok(())` - 信号发送成功
-/// * `Err(Box<dyn std::error::Error>)` - 信号发送失败
+/// * `Ok(())` - 信号发送成功。
+/// * `Err(SignalError)` - 信号发送失败或指令无效。
 ///
 /// ## 支持的指令
 ///
-/// * `hangup` - 挂起进程，发送`SIGHUP`信号(kill -1)，用于暂停程序运行
-/// * `continue` - 继续运行进程，发送`SIGCONT`信号(kill -18)，用于恢复程序运行
-/// * `interrupt` - 发送`SIGINT`信号(kill -2)，用于中断程序运行
-/// * `quit` - 发送`SIGQUIT`信号(kill -3)，用于退出程序，但保存进程运行状态
-/// * `stop`|`terminate` - 发送`SIGTERM`信号 (kill -15)，用于终止程序，优雅退出
-/// * `kill` - 发送`SIGKILL`信号(kill -9)，用于强制终止程序(顺带删除PID文件)
+/// * `"hangup"` - 发送 `SIGHUP` 信号 (`kill -1`)，用于挂起进程。
+/// * `"cont"` - 发送 `SIGCONT` 信号 (`kill -18`)，用于继续运行进程。
+/// * `"interrupt"` - 发送 `SIGINT` 信号 (`kill -2`)，用于中断程序运行。
+/// * `"quit"` - 发送 `SIGQUIT` 信号 (`kill -3`)，用于退出程序并生成核心转储。
+/// * `"stop"` / `"terminate"` - 发送 `SIGTERM` 信号 (`kill -15`)，用于优雅终止程序。
+/// * `"kill"` - 发送 `SIGKILL` 信号 (`kill -9`)，用于强制终止程序。
 ///
 /// ## 错误处理
 ///
-/// 当指定的信号名称无效时，函数会返回错误
+/// 当指定的信号名称无效时，函数会返回 `InvalidInstructionError`。
+/// 若信号发送失败（如权限不足或进程不存在），则返回 `SendSignalError`。
 pub fn send_signal_by_instruction(instruction: &str, pid: i32) -> Result<(), SignalError> {
     debug!("send signal by {instruction} instruction -> {pid}");
     let instruction = instruction.to_lowercase();
@@ -48,7 +49,21 @@ pub fn send_signal_by_instruction(instruction: &str, pid: i32) -> Result<(), Sig
 
 /// # 异步监听系统信号
 ///
-/// 该函数异步等待系统信号的到来，目前为空实现，可用于扩展信号处理功能。
+/// 该函数异步监听多种系统信号（如 `SIGHUP`、`SIGINT`、`SIGTERM` 等），并在接收到信号时执行相应操作。
+/// 目前实现了基本的日志输出功能，未来可根据需求扩展更多信号处理逻辑。
+///
+/// ## 监听的信号
+///
+/// * `SIGHUP` - 程序挂起信号，记录日志但不退出。
+/// * `SIGCONT` - 程序继续运行信号，记录日志但不退出。
+/// * `SIGINT` - 程序中断信号（如 Ctrl+C），记录日志并退出监听循环。
+/// * `SIGQUIT` - 程序退出信号，记录日志并退出监听循环。
+/// * `SIGTERM` - 程序终止信号，记录日志并退出监听循环。
+///
+/// ## 注意事项
+///
+/// - 该函数使用 `tokio::spawn` 启动异步任务，需在 `tokio` 运行时环境中调用。
+/// - 信号处理逻辑目前仅为日志输出，可根据实际需求扩展具体业务逻辑。
 pub fn watch_signal() {
     tokio::spawn(async move {
         debug!("watching signal...");
