@@ -8,6 +8,7 @@
 //! - [vec_option_serde] - 为 `Option<Vec<String>>` 提供自定义序列化
 
 pub mod duration_option_serde;
+pub mod duration_serde;
 pub mod log_filter_option_serde;
 pub mod vec_option_serde;
 pub mod vec_serde;

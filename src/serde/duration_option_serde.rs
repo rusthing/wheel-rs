@@ -68,11 +68,11 @@ pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error
 where
     D: Deserializer<'de>,
 {
-    deserializer.deserialize_option(DurationVisitor)
+    deserializer.deserialize_option(DurationOptionVisitor)
 }
 
-struct DurationVisitor;
-impl<'de> serde::de::Visitor<'de> for DurationVisitor {
+struct DurationOptionVisitor;
+impl<'de> serde::de::Visitor<'de> for DurationOptionVisitor {
     type Value = Option<Duration>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
