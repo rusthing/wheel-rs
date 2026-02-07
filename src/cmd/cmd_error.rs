@@ -32,8 +32,8 @@ pub enum CmdError {
     ///
     /// 当无法获取命令输出时返回此错误
     /// 封装了底层的 [`String`]
-    #[error("获取命令输出失败: {0}")]
-    TakeStdout(String),
+    #[error("获取命令输出失败")]
+    TakeStdout(),
     /// 进程ID为空错误
     ///
     /// 当进程ID为空时返回此错误

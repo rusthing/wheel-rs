@@ -43,7 +43,7 @@ pub async fn terminate_process(
     wait_timeout: Duration,
     retry_interval: Duration,
 ) -> Result<(), ProcessError> {
-    send_signal_by_instruction("terminate", pid).expect("Failed to send signal: ");
+    send_signal_by_instruction("terminate", pid)?;
     wait_for_process_exit(pid, wait_timeout, retry_interval).await?;
     Ok(())
 }

@@ -10,7 +10,7 @@
 //! let timestamp = get_current_timestamp();
 //! println!("当前时间戳: {}", timestamp);
 //! ```
-use std::time::SystemTime;
+use std::time::{SystemTime, SystemTimeError};
 
 /// # 获取当前时间戳（毫秒）
 ///
@@ -34,9 +34,8 @@ use std::time::SystemTime;
 /// let timestamp = get_current_timestamp();
 /// println!("当前时间戳: {}", timestamp);
 /// ```
-pub fn get_current_timestamp() -> u128 {
-    SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis()
+pub fn get_current_timestamp() -> Result<u128, SystemTimeError> {
+    Ok(SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)?
+        .as_millis())
 }

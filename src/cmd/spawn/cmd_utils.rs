@@ -57,13 +57,10 @@ pub fn execute(
         .stdout(Stdio::piped()) // 将标准输出重定向到管道，以便父进程可以读取
         .stderr(Stdio::null()) // 丢弃标准错误输出
         .spawn() // 启动命令并返回子进程句柄
-        .map_err(|e| CmdError::Execute(e))?; // 将可能的错误转换为CmdError类型
+        .map_err(CmdError::Execute)?; // 将可能的错误转换为CmdError类型
     debug!("command execute started: {}", cmd);
     // 获取标准输出
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| CmdError::TakeStdout("command process stdout not piped".to_string()))?;
+    let stdout = child.stdout.take().ok_or_else(CmdError::TakeStdout)?;
 
     // 异步读取输出
     tokio::spawn(read_stdout(
@@ -110,9 +107,9 @@ async fn read_stdout(
                 if receiver_count > 0 {
                     trace!("command process receiver count: {}", receiver_count);
                     let data = Bytes::copy_from_slice(&buffer[..n]);
-                    let _ = data_sender.send(data).map_err(|e| {
-                        warn!("Failed to send command process output to receiver: {}", e)
-                    });
+                    if let Err(e) = data_sender.send(data) {
+                        warn!("Failed to send command process output to receiver: {}", e);
+                    }
                 }
             }
             Err(e) => {
@@ -142,7 +139,7 @@ async fn read_stdout(
 pub fn is_process_alive(child: &mut Child) -> Result<bool, CmdError> {
     debug!(
         "checking if process is alive: {}",
-        child.id().ok_or_else(|| CmdError::EmptyId)?
+        child.id().ok_or(CmdError::EmptyId)?
     );
     Ok(match child.try_wait() {
         Ok(Some(_)) => false, // 进程已退出

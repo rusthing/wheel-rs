@@ -49,16 +49,12 @@ use std::path::Path;
 /// assert_eq!(get_file_ext("file_without_extension"), "");
 /// ```
 pub fn get_file_ext(file_name: &str) -> String {
-    if file_name.contains('.') {
-        file_name
-            .split('.')
-            .last()
-            .unwrap()
-            .to_string()
-            .to_lowercase()
-    } else {
-        String::new()
-    }
+    file_name
+        .split('.')
+        .last()
+        .unwrap_or("")
+        .to_string()
+        .to_lowercase()
 }
 
 /// # 计算指定文件的 SHA256 哈希值
@@ -89,18 +85,18 @@ pub fn get_file_ext(file_name: &str) -> String {
 /// let hash = calc_hash(Path::new("test.txt"));
 /// println!("文件哈希值: {}", hash);
 /// ```
-pub fn calc_hash(path: &Path) -> String {
-    let mut file = File::open(path).unwrap();
+pub fn calc_hash(path: &Path) -> Result<String, io::Error> {
+    let mut file = File::open(path)?;
     let mut hasher = sha2::Sha256::new();
     let mut buffer = [0; 8192];
     loop {
-        let bytes_read = file.read(&mut buffer).unwrap();
+        let bytes_read = file.read(&mut buffer)?;
         if bytes_read == 0 {
             break;
         }
         hasher.update(&buffer[..bytes_read]);
     }
-    format!("{:x}", hasher.finalize())
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 /// # 检查 IO 错误是否为跨设备错误
@@ -133,9 +129,9 @@ pub fn is_cross_device_error(err: &io::Error) -> bool {
     match err.kind() {
         // 在 Unix 系统上，跨设备错误通常表现为 CrossesDevices
         #[cfg(unix)]
-        io::ErrorKind::CrossesDevices => {
-            true
-        }
+        io::ErrorKind::CrossesDevices => true,
+        #[cfg(unix)]
+        _ => false,
         // 在 Windows 系统上，跨设备错误可能表现为 Other 或其他类型
         #[cfg(windows)]
         _ => {
@@ -146,6 +142,5 @@ pub fn is_cross_device_error(err: &io::Error) -> bool {
                 false
             }
         }
-        _ => false,
     }
 }

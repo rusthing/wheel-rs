@@ -3,6 +3,7 @@
 //! 定义进程管理过程中可能出现的各种错误类型，用于统一处理进程检查、退出等操作中的异常情况。
 //! 该模块通过 `thiserror` 提供结构化的错误类型，方便上层业务逻辑进行模式匹配和错误传播。
 
+use crate::process::SignalError;
 use thiserror::Error;
 
 /// # 进程相关错误枚举
@@ -23,6 +24,9 @@ pub enum ProcessError {
     /// ```
     #[error("Fail to check process: {0}")]
     CheckProcess(String),
+
+    #[error("{0}")]
+    Signal(#[from] SignalError),
 
     /// 进程退出等待超时
     ///
