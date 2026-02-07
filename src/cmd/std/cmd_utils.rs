@@ -48,11 +48,11 @@ pub fn execute(cmd: &str, args: &[&str]) -> Result<Vec<u8>, CmdError> {
     let output = Command::new(cmd)
         .args(args)
         .output()
-        .map_err(|e| CmdError::ExecuteFail(e))?;
+        .map_err(|e| CmdError::Execute(e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        return Err(CmdError::RunFail(stderr));
+        return Err(CmdError::Run(stderr));
     }
 
     Ok(output.stdout)

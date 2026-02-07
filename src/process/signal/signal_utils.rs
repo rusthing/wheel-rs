@@ -1,5 +1,4 @@
 use crate::process::SignalError;
-use crate::process::SignalError::{InvalidInstructionError, SendSignalError};
 use log::{debug, info};
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
@@ -42,9 +41,9 @@ pub fn send_signal_by_instruction(instruction: &str, pid: i32) -> Result<(), Sig
         "stop" | "terminate" => Signal::SIGTERM,
         "quit" => Signal::SIGQUIT,
         "kill" => Signal::SIGKILL,
-        _ => Err(InvalidInstructionError(instruction.to_string()))?,
+        _ => Err(SignalError::InvalidInstruction(instruction.to_string()))?,
     };
-    kill(Pid::from_raw(pid), signal).map_err(|_| SendSignalError(signal.to_string()))
+    kill(Pid::from_raw(pid), signal).map_err(|_| SignalError::SendSignal(signal.to_string()))
 }
 
 /// # 异步监听系统信号

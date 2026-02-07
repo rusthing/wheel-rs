@@ -3,7 +3,6 @@
 //! 提供进程终止、状态检查等核心功能的实用工具函数。
 //! 该模块封装了底层系统调用，简化了进程管理操作，适用于需要监控或控制外部进程的应用场景。
 
-use crate::process::ProcessError::{CheckProcessError, ProcessExitWaitTimeout};
 use crate::process::{send_signal_by_instruction, ProcessError};
 use std::io;
 use std::time::Duration;
@@ -78,7 +77,7 @@ async fn wait_for_process_exit(
         })
     })
     .await
-    .map_err(|_| ProcessExitWaitTimeout(pid))?
+    .map_err(|_| ProcessError::TerminateProcessTimeout(pid))?
 }
 
 /// # 检查进程是否存在
@@ -114,8 +113,8 @@ pub fn check_process(pid: i32) -> Result<bool, ProcessError> {
             match err.raw_os_error() {
                 Some(libc::ESRCH) => Ok(false), // 进程不存在
                 Some(libc::EPERM) => Ok(true),  // 进程存在但无权限
-                Some(e) => Err(CheckProcessError(e.to_string())),
-                None => Err(CheckProcessError("Unknown error".to_string())),
+                Some(e) => Err(ProcessError::CheckProcess(e.to_string())),
+                None => Err(ProcessError::CheckProcess("Unknown error".to_string())),
             }
         }
     }

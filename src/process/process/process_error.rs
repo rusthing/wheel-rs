@@ -22,7 +22,7 @@ pub enum ProcessError {
     /// let error = ProcessError::CheckProcessError("Permission denied".to_string());
     /// ```
     #[error("Fail to check process: {0}")]
-    CheckProcessError(String),
+    CheckProcess(String),
 
     /// 进程退出等待超时
     ///
@@ -38,5 +38,5 @@ pub enum ProcessError {
     /// let error = ProcessError::ProcessExitWaitTimeout(1234);
     /// ```
     #[error("Process exit wait timeout: pid-{0}")]
-    ProcessExitWaitTimeout(i32),
+    TerminateProcessTimeout(i32),
 }

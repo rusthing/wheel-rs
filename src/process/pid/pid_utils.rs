@@ -1,8 +1,4 @@
 use crate::process::PidError;
-use crate::process::PidError::{
-    CreatePidFileError, DeletePidFileError, InvalidPidFilePath, OpenPidFileError,
-    ParsePidFileContentError, ReadPidFileError, WritePidFileError,
-};
 use libc::pid_t;
 use log::{debug, info};
 use std::fs::File;
@@ -34,7 +30,7 @@ pub fn read_pid(pid_file_path: &PathBuf) -> Result<Option<pid_t>, PidError> {
     // 验证路径是否有效
     let path = pid_file_path
         .to_str()
-        .ok_or(InvalidPidFilePath(pid_file_path.clone()))?;
+        .ok_or(PidError::InvalidPidFilePath(pid_file_path.clone()))?;
 
     // 检查文件是否存在
     if !pid_file_path.exists() {
@@ -42,16 +38,16 @@ pub fn read_pid(pid_file_path: &PathBuf) -> Result<Option<pid_t>, PidError> {
     }
 
     // 打开文件并读取第一行内容
-    let pid_file = File::open(path).map_err(|_| OpenPidFileError(path.to_string()))?;
+    let pid_file = File::open(path).map_err(|_| PidError::OpenPidFile(path.to_string()))?;
     let reader = BufReader::new(pid_file);
     let pid = reader
         .lines()
         .next()
-        .ok_or(ReadPidFileError(path.to_string()))?
-        .map_err(|_| ReadPidFileError(path.to_string()))?
+        .ok_or(PidError::ReadPidFile(path.to_string()))?
+        .map_err(|_| PidError::ReadPidFile(path.to_string()))?
         .trim()
         .parse::<pid_t>()
-        .map_err(|_| ParsePidFileContentError(path.to_string()))?;
+        .map_err(|_| PidError::ParsePidFileContent(path.to_string()))?;
 
     Ok(Some(pid))
 }
@@ -83,14 +79,14 @@ pub fn write_pid(pid_file_path: &PathBuf) -> Result<(), PidError> {
     // 验证路径是否有效
     let path = pid_file_path
         .to_str()
-        .ok_or(InvalidPidFilePath(pid_file_path.clone()))?;
+        .ok_or(PidError::InvalidPidFilePath(pid_file_path.clone()))?;
 
     // 创建文件并写入当前进程ID
-    let pid_file = File::create(path).map_err(|_| CreatePidFileError(path.to_string()))?;
+    let pid_file = File::create(path).map_err(|_| PidError::CreatePidFile(path.to_string()))?;
     let mut writer = BufWriter::new(pid_file);
     writer
         .write_all(pid.to_string().as_bytes())
-        .map_err(|_| WritePidFileError(path.to_string()))?;
+        .map_err(|_| PidError::WritePidFile(path.to_string()))?;
 
     Ok(())
 }
@@ -115,10 +111,10 @@ pub fn delete_pid_file(pid_file_path: &PathBuf) -> Result<(), PidError> {
     // 验证路径是否有效
     let path = pid_file_path
         .to_str()
-        .ok_or(InvalidPidFilePath(pid_file_path.clone()))?;
+        .ok_or(PidError::InvalidPidFilePath(pid_file_path.clone()))?;
 
     // 删除文件（若文件不存在则视为成功）
-    std::fs::remove_file(pid_file_path).map_err(|_| DeletePidFileError(path.to_string()))?;
+    std::fs::remove_file(pid_file_path).map_err(|_| PidError::DeletePidFile(path.to_string()))?;
 
     Ok(())
 }

@@ -23,7 +23,7 @@ pub enum SignalError {
     /// let error = SignalError::InvalidInstructionError("unknown_signal".to_string());
     /// ```
     #[error("Invalid instruction: {0}")]
-    InvalidInstructionError(String),
+    InvalidInstruction(String),
 
     /// 发送信号失败错误
     ///
@@ -38,5 +38,5 @@ pub enum SignalError {
     /// let error = SignalError::SendSignalError("Permission denied".to_string());
     /// ```
     #[error("Fail to send signal: {0}")]
-    SendSignalError(String),
+    SendSignal(String),
 }

@@ -21,35 +21,35 @@ pub enum PidError {
     ///
     /// 当无法打开指定的 PID 文件时返回此错误
     #[error("Fail to open PID file: {0}")]
-    OpenPidFileError(String),
+    OpenPidFile(String),
 
     /// 创建 PID 文件失败错误
     ///
     /// 当无法创建新的 PID 文件时返回此错误
     #[error("Fail to create PID file: {0}")]
-    CreatePidFileError(String),
+    CreatePidFile(String),
 
     /// 读取 PID 文件失败错误
     ///
     /// 当无法读取 PID 文件内容时返回此错误
     #[error("Fail to read PID file: {0}")]
-    ReadPidFileError(String),
+    ReadPidFile(String),
 
     /// 写入 PID 文件失败错误
     ///
     /// 当无法向 PID 文件写入数据时返回此错误
     #[error("Fail to write PID file: {0}")]
-    WritePidFileError(String),
+    WritePidFile(String),
 
     /// 解析 PID 文件内容失败错误
     ///
     /// 当 PID 文件内容格式不正确或无法解析时返回此错误
     #[error("Fail to parse content of PID file : {0}")]
-    ParsePidFileContentError(String),
+    ParsePidFileContent(String),
 
     /// 删除 PID 文件失败错误
     ///
     /// 当无法删除指定的 PID 文件时返回此错误
     #[error("Fail to delete PID file: {0}")]
-    DeletePidFileError(String),
+    DeletePidFile(String),
 }

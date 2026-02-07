@@ -15,25 +15,25 @@ pub enum CmdError {
     /// 当无法启动命令或在设置命令执行环境时发生错误时返回此错误
     /// 包装了底层的 [`Error`]
     #[error("执行命令失败: {0}")]
-    ExecuteFail(Error),
+    Execute(Error),
     /// 命令运行失败错误
     ///
     /// 当命令被执行但返回非零退出码时返回此错误
     /// 包含命令输出的错误信息
     #[error("运行命令失败: {0}")]
-    RunFail(String),
+    Run(String),
     /// 杀死命令进程失败错误
     ///
     /// 当无法杀死命令进程时返回此错误
     /// 包装了底层的 [`Error`]
     #[error("杀死命令进程失败: {0}")]
-    KillFail(Error),
+    Kill(Error),
     /// 获取命令输出失败错误
     ///
     /// 当无法获取命令输出时返回此错误
     /// 封装了底层的 [`String`]
     #[error("获取命令输出失败: {0}")]
-    TakeStdoutError(String),
+    TakeStdout(String),
     /// 进程ID为空错误
     ///
     /// 当进程ID为空时返回此错误

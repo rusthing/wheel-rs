@@ -57,13 +57,13 @@ pub fn execute(
         .stdout(Stdio::piped()) // 将标准输出重定向到管道，以便父进程可以读取
         .stderr(Stdio::null()) // 丢弃标准错误输出
         .spawn() // 启动命令并返回子进程句柄
-        .map_err(|e| CmdError::ExecuteFail(e))?; // 将可能的错误转换为CmdError类型
+        .map_err(|e| CmdError::Execute(e))?; // 将可能的错误转换为CmdError类型
     debug!("command execute started: {}", cmd);
     // 获取标准输出
     let stdout = child
         .stdout
         .take()
-        .ok_or_else(|| CmdError::TakeStdoutError("command process stdout not piped".to_string()))?;
+        .ok_or_else(|| CmdError::TakeStdout("command process stdout not piped".to_string()))?;
 
     // 异步读取输出
     tokio::spawn(read_stdout(
@@ -166,7 +166,7 @@ pub fn is_process_alive(child: &mut Child) -> Result<bool, CmdError> {
 ///
 /// ## 错误处理
 ///
-/// 如果杀死进程过程中发生错误，则返回 [CmdError::KillFail] 错误。
+/// 如果杀死进程过程中发生错误，则返回 [CmdError::Kill] 错误。
 pub async fn kill_process(mut child: Child) -> Result<(), CmdError> {
     debug!(
         "killing process: {}",
@@ -174,6 +174,6 @@ pub async fn kill_process(mut child: Child) -> Result<(), CmdError> {
     );
     Ok(child.kill().await.map_err(|e| {
         error!("kill process fail: {}", e);
-        CmdError::KillFail(e)
+        CmdError::Kill(e)
     })?)
 }
