@@ -6,6 +6,12 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::process;
 
+pub fn get_pid_file_path(app_file_path: &PathBuf) -> PathBuf {
+    let mut pid_file_path = app_file_path.clone();
+    pid_file_path.set_extension("pid");
+    pid_file_path
+}
+
 /// # 读取PID文件中的进程ID
 ///
 /// 从指定路径的PID文件中读取保存的进程ID。如果文件不存在、无法打开或内容格式错误，

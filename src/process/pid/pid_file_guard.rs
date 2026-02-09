@@ -49,11 +49,7 @@ impl PidFileGuard {
     /// let app_path = PathBuf::from("/tmp/my_app");
     /// let guard = PidFileGuard::new(&app_path);
     /// ```
-    pub fn new(app_file_path: &PathBuf) -> Result<Self, PidError> {
-        // 克隆基础路径并添加 `.pid` 扩展名
-        let mut pid_file_path = app_file_path.clone();
-        pid_file_path.set_extension("pid");
-
+    pub fn new(pid_file_path: PathBuf) -> Result<Self, PidError> {
         // 写入当前进程的 PID 到文件中
         write_pid(&pid_file_path)?;
 
