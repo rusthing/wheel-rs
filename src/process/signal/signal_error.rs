@@ -39,4 +39,19 @@ pub enum SignalError {
     /// ```
     #[error("Fail to send signal: {0}")]
     SendSignal(String),
+
+    /// 注册信号处理函数失败错误
+    ///
+    /// 当尝试注册信号处理函数时因权限不足或其他系统级原因导致失败时触发此错误。
+    ///
+    /// ## 参数
+    /// - `signal`: 指示注册失败的是哪个信号
+    ///
+    /// ## 示例
+    /// ```rust
+    /// use crate::signal::SignalError;
+    /// let error = SignalError::RegisterSignalHandlerError("SIGHUP".to_string());
+    /// ```
+    #[error("Fail to register signal handler: {0}")]
+    RegisterSignalHandler(String),
 }

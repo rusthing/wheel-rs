@@ -3,6 +3,7 @@ use log::{debug, info};
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 use tokio::signal::unix::{signal, SignalKind};
+use tracing::instrument;
 
 /// # 通过指令发送系统信号给指定进程
 ///
@@ -64,40 +65,46 @@ pub fn send_signal_by_instruction(instruction: &str, pid: i32) -> Result<(), Sig
 /// - 该函数使用 `tokio::spawn` 启动异步任务，需在 `tokio` 运行时环境中调用。
 /// - 信号处理逻辑目前仅为日志输出，可根据实际需求扩展具体业务逻辑。
 pub fn watch_signal() {
-    tokio::spawn(async move {
-        debug!("watching signal...");
-        let mut sighup_stream =
-            signal(SignalKind::hangup()).expect("Failed to register signal handler: SIGHUP");
-        let mut sigcont_stream =
-            signal(SignalKind::from_raw(18)).expect("Failed to register signal handler: SIGCONT");
-        let mut sigint_stream =
-            signal(SignalKind::interrupt()).expect("Failed to register signal handler: SIGINT");
-        let mut sigquit_stream =
-            signal(SignalKind::quit()).expect("Failed to register signal handler: SIGQUIT");
-        let mut sigterm_stream =
-            signal(SignalKind::terminate()).expect("Failed to register signal handler: SIGTERM");
+    tokio::spawn(async {
+        watch_signal_internal().await.expect("watch signal error");
+    });
+}
 
-        loop {
-            tokio::select! {
-                _ = sighup_stream.recv() => {
-                    info!("程序挂起(SIGHUP)");
-                }
-                _ = sigcont_stream.recv() => {
-                    info!("程序继续运行(SIGCONT)");
-                }
-                _ = sigint_stream.recv() => {
-                    info!("程序中断运行(SIGINT)");
-                    break;
-                }
-                _ = sigquit_stream.recv() => {
-                    info!("程序退出运行(SIGQUIT)");
-                    break;
-                }
-                _ = sigterm_stream.recv() => {
-                    info!("程序终止运行(SIGTERM)");
-                    break;
-                }
+#[instrument(err)]
+async fn watch_signal_internal() -> Result<(), SignalError> {
+    debug!("watching signal...");
+    let mut sighup_stream = signal(SignalKind::hangup())
+        .map_err(|_| SignalError::RegisterSignalHandler("SIGHUP".to_string()))?;
+    let mut sigcont_stream = signal(SignalKind::from_raw(18))
+        .map_err(|_| SignalError::RegisterSignalHandler("SIGCONT".to_string()))?;
+    let mut sigint_stream = signal(SignalKind::interrupt())
+        .map_err(|_| SignalError::RegisterSignalHandler("SIGINT".to_string()))?;
+    let mut sigquit_stream = signal(SignalKind::quit())
+        .map_err(|_| SignalError::RegisterSignalHandler("SIGQUIT".to_string()))?;
+    let mut sigterm_stream = signal(SignalKind::terminate())
+        .map_err(|_| SignalError::RegisterSignalHandler("SIGTERM".to_string()))?;
+
+    loop {
+        tokio::select! {
+            _ = sighup_stream.recv() => {
+                info!("程序挂起(SIGHUP)");
+            }
+            _ = sigcont_stream.recv() => {
+                info!("程序继续运行(SIGCONT)");
+            }
+            _ = sigint_stream.recv() => {
+                info!("程序中断运行(SIGINT)");
+                break;
+            }
+            _ = sigquit_stream.recv() => {
+                info!("程序退出运行(SIGQUIT)");
+                break;
+            }
+            _ = sigterm_stream.recv() => {
+                info!("程序终止运行(SIGTERM)");
+                break;
             }
         }
-    });
+    }
+    Ok(())
 }
