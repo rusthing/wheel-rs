@@ -1,3 +1,8 @@
+//! # PID 工具函数
+//!
+//! 提供进程ID相关的实用工具函数，主要用于PID文件的操作和管理。
+//! 包括PID文件的读取、写入、删除以及进程身份验证等功能。
+
 use crate::process::PidError;
 use libc::pid_t;
 use log::{debug, info};
@@ -6,6 +11,29 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::process;
 
+/// # 获取PID文件路径
+///
+/// 根据应用程序文件路径生成对应的PID文件路径。
+/// 通过将原文件的扩展名替换为 `.pid` 来构造PID文件路径。
+///
+/// ## 参数
+///
+/// * `app_file_path` - 应用程序文件的路径
+///
+/// ## 返回值
+///
+/// 返回构造好的PID文件路径
+///
+/// ## 示例
+///
+/// ```
+/// use std::path::PathBuf;
+/// use wheel_rs::process::pid_utils::get_pid_file_path;
+///
+/// let app_path = PathBuf::from("/var/run/myapp");
+/// let pid_path = get_pid_file_path(&app_path);
+/// assert_eq!(pid_path.extension().unwrap(), "pid");
+/// ```
 pub fn get_pid_file_path(app_file_path: &PathBuf) -> PathBuf {
     let mut pid_file_path = app_file_path.clone();
     pid_file_path.set_extension("pid");

@@ -31,7 +31,7 @@ use std::time::{SystemTime, SystemTimeError};
 /// ```
 /// use wheel_rs::time_utils::get_current_timestamp;
 ///
-/// let timestamp = get_current_timestamp();
+/// let timestamp = get_current_timestamp().unwrap();
 /// println!("当前时间戳: {}", timestamp);
 /// ```
 pub fn get_current_timestamp() -> Result<u128, SystemTimeError> {

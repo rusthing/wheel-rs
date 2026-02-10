@@ -45,12 +45,21 @@ where
 ///
 /// ## 示例
 /// ```rust
-/// use serde::Deserialize;
-/// #[derive(Deserialize)]
+/// use serde::{Serialize, Deserialize};
+/// use serde_json;
+/// 
+/// #[derive(Serialize, Deserialize)]
 /// struct Example {
-/// #[serde(deserialize_with = "crate::serde::vec_serde::deserialize")]
-/// tags: Vec<String>,
+///     #[serde(
+///         serialize_with = "crate::serde::vec_serde::serialize",
+///         deserialize_with = "crate::serde::vec_serde::deserialize"
+///     )]
+///     tags: Vec<String>,
 /// }
+/// 
+/// let json = r#'{"tags": ["tag1", "tag2"]}'#;
+/// let example: Example = serde_json::from_str(json).unwrap();
+/// assert_eq!(example.tags, vec!["tag1", "tag2"]);
 /// ```
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where

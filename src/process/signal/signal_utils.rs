@@ -1,3 +1,8 @@
+//! # 信号处理工具函数
+//!
+//! 提供系统信号的发送和监听功能，支持常见的Unix信号处理。
+//! 包括通过指令发送信号、异步信号监听等功能。
+
 use crate::process::SignalError;
 use log::{debug, info};
 use nix::sys::signal::{kill, Signal};
