@@ -75,7 +75,7 @@ pub fn watch_signal() {
     });
 }
 
-#[instrument(err)]
+#[instrument(level = "debug", err)]
 async fn watch_signal_internal() -> Result<(), SignalError> {
     debug!("watching signal...");
     let mut sighup_stream = signal(SignalKind::hangup())
