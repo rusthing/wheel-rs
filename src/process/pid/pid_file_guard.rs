@@ -12,6 +12,7 @@ use std::path::PathBuf;
 ///
 /// 用于管理 PID 文件的生命周期，在对象被销毁时自动清理 PID 文件。
 /// 通过实现 `Drop` trait，确保在作用域结束时自动执行清理逻辑。
+#[derive(Debug)]
 pub struct PidFileGuard {
     /// 存储 PID 文件的路径
     pid_file_path: PathBuf,
