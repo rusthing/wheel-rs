@@ -8,7 +8,6 @@ use log::{debug, info};
 use nix::sys::signal::{kill, Signal};
 use nix::unistd::Pid;
 use tokio::signal::unix::{signal, SignalKind};
-use tracing::instrument;
 
 /// # 通过指令发送系统信号给指定进程
 ///
@@ -75,7 +74,6 @@ pub fn watch_signal() {
     });
 }
 
-#[instrument(level = "debug", err)]
 async fn watch_signal_internal() -> Result<(), SignalError> {
     debug!("watching signal...");
     let mut sighup_stream = signal(SignalKind::hangup())
