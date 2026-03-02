@@ -10,6 +10,8 @@
 pub mod duration_option_serde;
 pub mod duration_serde;
 pub mod log_filter_option_serde;
+pub mod path_buf_option_serde;
+pub mod path_buf_serde;
 pub mod rotation_serde;
 pub mod vec_option_serde;
 pub mod vec_serde;
