@@ -9,7 +9,7 @@
 //! ## 示例
 //!
 //! ```
-//! use wheel_rs::file_utils::{get_file_ext, calc_hash};
+//! use wheel_rs::file_utils::{get_file_ext, calc_hash_of_file};
 //!
 //! // 获取文件扩展名
 //! let ext = get_file_ext("example.TXT");
@@ -79,13 +79,13 @@ pub fn get_file_ext(file_name: &str) -> String {
 ///
 /// ```
 /// use std::path::Path;
-/// use wheel_rs::file_utils::calc_hash;
+/// use wheel_rs::file_utils::calc_hash_of_file;
 ///
 /// // 假设存在一个名为 "test.txt" 的文件
-/// let hash = calc_hash(Path::new("test.txt"));
+/// let hash = calc_hash_of_file(Path::new("test.txt"));
 /// println!("文件哈希值: {}", hash);
 /// ```
-pub fn calc_hash(path: &Path) -> Result<String, io::Error> {
+pub fn calc_hash_of_file(path: &Path) -> Result<String, io::Error> {
     let mut file = File::open(path)?;
     let mut hasher = sha2::Sha256::new();
     let mut buffer = [0; 8192];
