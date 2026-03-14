@@ -21,7 +21,7 @@
 //!
 //! #[derive(Serialize, Deserialize)]
 //! struct Config {
-//!     #[serde(with = "wheel_rs::serde::log_filter_serde")]
+//!     #[serde(with = "wheel_rs::serde::log_filter")]
 //!     log_level: LevelFilter,
 //! }
 //! ```
@@ -42,15 +42,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 /// ## 返回值
 ///
 /// 返回包含序列化结果的 `Result`，如果序列化失败则返回错误。
-pub fn serialize<S>(level: &Option<LevelFilter>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(level: &LevelFilter, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    if let Some(level) = level {
-        level.as_str().serialize(serializer)
-    } else {
-        serializer.serialize_none()
-    }
+    level.as_str().serialize(serializer)
 }
 
 /// # 将字符串反序列化为 `LevelFilter`。
@@ -77,27 +73,23 @@ where
 ///
 /// 返回包含反序列化结果的 `Result`，如果字符串无法匹配任何已知的日志级别，
 /// 则返回自定义错误。
-pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<LevelFilter>, D::Error>
+pub fn deserialize<'de, D>(deserializer: D) -> Result<LevelFilter, D::Error>
 where
     D: Deserializer<'de>,
 {
-    let s: Option<String> = Option::deserialize(deserializer)?;
-    if let Some(s) = s {
-        Ok(Some(match s.to_lowercase().as_str() {
-            "off" => LevelFilter::Off,
-            "error" => LevelFilter::Error,
-            "warn" => LevelFilter::Warn,
-            "info" => LevelFilter::Info,
-            "debug" => LevelFilter::Debug,
-            "trace" => LevelFilter::Trace,
-            _ => {
-                return Err(serde::de::Error::custom(format!(
-                    "Unknown log level: {}",
-                    s
-                )));
-            }
-        }))
-    } else {
-        Ok(None)
-    }
+    let s: String = String::deserialize(deserializer)?;
+    Ok(match s.to_lowercase().as_str() {
+        "off" => LevelFilter::Off,
+        "error" => LevelFilter::Error,
+        "warn" => LevelFilter::Warn,
+        "info" => LevelFilter::Info,
+        "debug" => LevelFilter::Debug,
+        "trace" => LevelFilter::Trace,
+        _ => {
+            return Err(serde::de::Error::custom(format!(
+                "Unknown log level: {}",
+                s
+            )));
+        }
+    })
 }
