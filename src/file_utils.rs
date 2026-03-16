@@ -48,13 +48,11 @@ use std::path::Path;
 /// assert_eq!(get_file_ext("document.pdf"), "pdf");
 /// assert_eq!(get_file_ext("file_without_extension"), "");
 /// ```
-pub fn get_file_ext(file_name: &str) -> String {
+pub fn get_file_ext(file_name: &str) -> Option<String> {
     file_name
         .split('.')
         .last()
-        .unwrap_or("")
-        .to_string()
-        .to_lowercase()
+        .map(|s| s.to_string().to_lowercase())
 }
 
 /// # 计算指定文件的 SHA256 哈希值
