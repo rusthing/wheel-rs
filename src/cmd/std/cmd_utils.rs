@@ -40,7 +40,7 @@ use std::process::{Child, Command};
 ///         let output_str = String::from_utf8_lossy(&bytes);
 ///         println!("Command output: {}", output_str);
 ///     }
-///     Err(e) => eprintln!("Command failed: {}", e),
+///     Err(e) => eprintln!("Command failed: {:#}", e),
 /// }
 /// ```
 pub fn execute(cmd: &str, args: &[&str]) -> Result<Vec<u8>, CmdError> {

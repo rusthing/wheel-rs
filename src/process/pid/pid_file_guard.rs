@@ -25,7 +25,7 @@ impl Drop for PidFileGuard {
     /// 如果删除失败，会记录警告日志但不会 panic。
     fn drop(&mut self) {
         if let Err(e) = delete_pid_file_if_my_process(&self.pid_file_path) {
-            warn!("Failed to delete PID file: {}", e);
+            warn!("Failed to delete PID file: {:#}", e);
         }
     }
 }

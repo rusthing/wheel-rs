@@ -108,12 +108,12 @@ async fn read_stdout(
                     trace!("command process receiver count: {}", receiver_count);
                     let data = Bytes::copy_from_slice(&buffer[..n]);
                     if let Err(e) = data_sender.send(data) {
-                        warn!("Failed to send command process output to receiver: {}", e);
+                        warn!("Failed to send command process output to receiver: {:#}", e);
                     }
                 }
             }
             Err(e) => {
-                error!("read command process stdout error: {}", e);
+                error!("read command process stdout error: {:#}", e);
                 break;
             }
         }
@@ -170,7 +170,7 @@ pub async fn kill_process(mut child: Child) -> Result<(), CmdError> {
         child.id().ok_or_else(|| CmdError::EmptyId)?
     );
     Ok(child.kill().await.map_err(|e| {
-        error!("kill process fail: {}", e);
+        error!("kill process fail: {:#}", e);
         CmdError::Kill(e)
     })?)
 }
