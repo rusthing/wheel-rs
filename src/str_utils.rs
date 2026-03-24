@@ -18,6 +18,7 @@ pub enum CamelFormat {
     Lower,
 }
 
+/// # 将驼峰格式的字符串分割成数组
 pub fn split_camel_case(s: &str, format: CamelFormat) -> Result<Vec<String>, StrError> {
     if s.is_empty() {
         return Err(StrError::Empty);
