@@ -87,3 +87,17 @@ pub fn split_camel_case(s: &str, format: CamelFormat) -> Result<Vec<String>, Str
 
     Ok(words)
 }
+
+/// `snake_case` → `PascalCase`：`deleted_at` → `DeletedAt`
+pub fn snake_to_pascal(s: &str) -> String {
+    s.split('_')
+        .filter(|seg| !seg.is_empty())
+        .map(|seg| {
+            let mut c = seg.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
+        })
+        .collect()
+}
