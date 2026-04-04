@@ -13,14 +13,14 @@ readme = "README.md"
 
 [dependencies]
 log = "0.4.29"
-tracing = "0.1.44"
 tracing-appender = "0.2.4"
 thiserror = "2.0.18"
 serde = "1.0.228"
 humantime = "2.3.0"
-sha2 = "0.10.9"
+sha2 = "0.11.0"
+hex = "0.4.3"
 dns-lookup = "3.0.1"
-tokio = { version = "1.49.0", features = ["macros", "signal", "process", "io-util", "sync", "rt", "time"] }
+tokio = { version = "1.51.0", features = ["macros", "signal", "process", "io-util", "sync", "rt", "time"] }
 bytes = "1.11.1"
-nix = { version = "0.31.1", features = ["signal"] }
-libc = "0.2.180"
+nix = { version = "0.31.2", features = ["signal"] }
+libc = "1.0.0-alpha.3"

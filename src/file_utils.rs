@@ -94,7 +94,8 @@ pub fn calc_hash_of_file(path: &Path) -> Result<String, io::Error> {
         }
         hasher.update(&buffer[..bytes_read]);
     }
-    Ok(format!("{:x}", hasher.finalize()))
+    let result = hasher.finalize();
+    Ok(hex::encode(result))
 }
 
 /// # 检查 IO 错误是否为跨设备错误
