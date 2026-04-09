@@ -21,6 +21,7 @@
 pub mod cmd;
 pub mod dns_utils;
 pub mod file_utils;
+pub mod ipnet_utils;
 pub mod process;
 pub mod serde;
 pub mod str_utils;

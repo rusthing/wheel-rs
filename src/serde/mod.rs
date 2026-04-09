@@ -19,6 +19,7 @@ pub mod path_buf_serde;
 pub mod rotation_serde;
 pub mod u64_option_serde;
 pub mod u64_serde;
+pub mod vec_ipnet_serde;
 pub mod vec_option_serde;
 pub mod vec_serde;
 pub mod vec_urn_serde;
