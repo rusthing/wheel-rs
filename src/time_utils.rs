@@ -19,7 +19,7 @@ use std::time::{SystemTime, SystemTimeError};
 ///
 /// ## 返回值
 ///
-/// 返回一个 u128 类型的毫秒时间戳。
+/// 返回一个 u64 类型的毫秒时间戳。
 ///
 /// ## Panics
 ///
@@ -34,8 +34,8 @@ use std::time::{SystemTime, SystemTimeError};
 /// let timestamp = get_current_timestamp().unwrap();
 /// println!("当前时间戳: {}", timestamp);
 /// ```
-pub fn get_current_timestamp() -> Result<u128, SystemTimeError> {
+pub fn get_current_timestamp() -> Result<u64, SystemTimeError> {
     Ok(SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)?
-        .as_millis())
+        .as_millis() as u64)
 }
