@@ -42,5 +42,5 @@ pub enum ProcessError {
     /// let error = ProcessError::ProcessExitWaitTimeout(1234);
     /// ```
     #[error("Process exit wait timeout: pid-{0}")]
-    TerminateProcessTimeout(i32),
+    TerminateProcessTimeout(u32),
 }

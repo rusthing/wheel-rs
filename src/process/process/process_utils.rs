@@ -4,6 +4,7 @@
 //! 该模块封装了底层系统调用，简化了进程管理操作，适用于需要监控或控制外部进程的应用场景。
 
 use crate::process::{send_signal_by_instruction, ProcessError};
+use libc::pid_t;
 use std::io;
 use std::time::Duration;
 use tokio::time::timeout;
@@ -39,7 +40,7 @@ use tokio::time::timeout;
 /// }
 /// ```
 pub async fn terminate_process(
-    pid: i32,
+    pid: u32,
     wait_timeout: Duration,
     retry_interval: Duration,
 ) -> Result<(), ProcessError> {
@@ -67,7 +68,7 @@ pub async fn terminate_process(
 /// - `retry_interval` 不宜过短，以免频繁调用系统API造成性能损耗。
 /// - `wait_timeout` 应根据实际需求合理设置，避免无限等待。
 async fn wait_for_process_exit(
-    pid: i32,
+    pid: u32,
     wait_timeout: Duration,
     retry_interval: Duration,
 ) -> Result<(), ProcessError> {
@@ -103,9 +104,9 @@ async fn wait_for_process_exit(
 /// - `ESRCH`: 进程不存在。
 /// - `EPERM`: 进程存在但无权限访问。
 /// - 其他错误: 返回具体错误信息。
-pub fn check_process(pid: i32) -> Result<bool, ProcessError> {
+pub fn check_process(pid: u32) -> Result<bool, ProcessError> {
     unsafe {
-        let result = libc::kill(pid, 0); // 信号 0
+        let result = libc::kill(pid as pid_t, 0); // 信号 0
         if result == 0 {
             Ok(true) // 进程存在
         } else {

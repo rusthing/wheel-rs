@@ -4,12 +4,15 @@
 //! 包括PID文件的读取、写入、删除以及进程身份验证等功能。
 
 use crate::process::PidError;
-use libc::pid_t;
 use log::{debug, info};
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::process;
+
+pub fn get_current_pid() -> u32 {
+    process::id()
+}
 
 /// # 获取PID文件路径
 ///
@@ -58,7 +61,7 @@ pub fn get_pid_file_path(app_file_path: &PathBuf) -> PathBuf {
 /// - `OpenPidFileError`: 无法打开文件。
 /// - `ReadPidFileError`: 读取文件失败。
 /// - `ParsePidFileContentError`: 解析PID内容失败。
-pub fn read_pid(pid_file_path: &PathBuf) -> Result<Option<pid_t>, PidError> {
+pub fn read_pid(pid_file_path: &PathBuf) -> Result<Option<u32>, PidError> {
     debug!("Reading PID from {pid_file_path:?}...");
 
     // 验证路径是否有效
@@ -80,7 +83,7 @@ pub fn read_pid(pid_file_path: &PathBuf) -> Result<Option<pid_t>, PidError> {
         .ok_or(PidError::ReadPidFile(path.to_string()))?
         .map_err(|_| PidError::ReadPidFile(path.to_string()))?
         .trim()
-        .parse::<pid_t>()
+        .parse::<u32>()
         .map_err(|_| PidError::ParsePidFileContent(path.to_string()))?;
 
     Ok(Some(pid))
@@ -107,7 +110,7 @@ pub fn read_pid(pid_file_path: &PathBuf) -> Result<Option<pid_t>, PidError> {
 /// - `CreatePidFileError`: 创建文件失败。
 /// - `WritePidFileError`: 写入文件失败。
 pub fn write_pid(pid_file_path: &PathBuf) -> Result<(), PidError> {
-    let pid = process::id();
+    let pid = get_current_pid();
     debug!("Writing PID {pid} to {pid_file_path:?}...");
 
     // 验证路径是否有效
@@ -174,7 +177,7 @@ pub fn delete_pid_file(pid_file_path: &PathBuf) -> Result<(), PidError> {
 pub fn delete_pid_file_if_my_process(pid_file_path: &PathBuf) -> Result<(), PidError> {
     // 读取PID文件中的PID，并检查是否与当前进程匹配
     if let Ok(Some(pid)) = read_pid(pid_file_path)
-        && pid == process::id() as pid_t
+        && pid == get_current_pid()
     {
         // 若匹配，则删除PID文件
         delete_pid_file(pid_file_path)?;

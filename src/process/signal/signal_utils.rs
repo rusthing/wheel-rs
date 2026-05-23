@@ -4,6 +4,7 @@
 //! 包括通过指令发送信号、异步信号监听等功能。
 
 use crate::process::SignalError;
+use libc::pid_t;
 use log::{debug, info};
 use nix::sys::signal::kill;
 use nix::unistd::Pid;
@@ -38,7 +39,7 @@ use tokio::sync::broadcast::{Receiver, Sender};
 ///
 /// 当指定的信号名称无效时，函数会返回 `InvalidInstructionError`。
 /// 若信号发送失败（如权限不足或进程不存在），则返回 `SendSignalError`。
-pub fn send_signal_by_instruction(instruction: &str, pid: i32) -> Result<(), SignalError> {
+pub fn send_signal_by_instruction(instruction: &str, pid: u32) -> Result<(), SignalError> {
     debug!("send signal by {instruction} instruction -> {pid}");
     let instruction = instruction.to_lowercase();
     let signal = match instruction.as_str() {
@@ -50,7 +51,8 @@ pub fn send_signal_by_instruction(instruction: &str, pid: i32) -> Result<(), Sig
         "kill" => nix::sys::signal::Signal::SIGKILL,
         _ => Err(SignalError::InvalidInstruction(instruction.to_string()))?,
     };
-    kill(Pid::from_raw(pid), signal).map_err(|_| SignalError::SendSignal(signal.to_string()))
+    kill(Pid::from_raw(pid as pid_t), signal)
+        .map_err(|_| SignalError::SendSignal(signal.to_string()))
 }
 
 /// # 异步监听系统信号
