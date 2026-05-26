@@ -1,6 +1,6 @@
 [package]
 name = "wheel-rs"
-version = "1.6.0"
+version = "1.6.1"
 edition = "2024"
 authors = ["zbz"]
 keywords = ["tools", "utils"]
@@ -12,7 +12,7 @@ repository = "https://github.com/rusthing/wheel-rs"
 readme = "README.md"
 
 [dependencies]
-log = "0.4.29"
+log = "0.4.30"
 tracing-appender = "0.2.4"
 thiserror = "2.0.18"
 serde = "1.0.228"

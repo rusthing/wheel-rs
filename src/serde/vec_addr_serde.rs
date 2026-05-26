@@ -1,0 +1,71 @@
+use crate::addr_utils::Addr;
+use serde::{
+    de::{self, Deserializer, SeqAccess, Visitor},
+    ser::{SerializeSeq, Serializer},
+};
+use std::fmt;
+
+pub fn serialize<S>(vec: &Vec<Addr>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut seq = serializer.serialize_seq(Some(vec.len()))?;
+    for element in vec {
+        let addr_str = element.to_string();
+        seq.serialize_element(&addr_str)?;
+    }
+    seq.end()
+}
+
+pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Addr>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserializer.deserialize_any(AddrVecVisitor)
+}
+
+struct AddrVecVisitor;
+
+impl<'de> Visitor<'de> for AddrVecVisitor {
+    type Value = Vec<Addr>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string, comma-separated string, or array of strings")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        self.visit_string(value.to_string())
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(value
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .map(|s| Addr::from_str(&s).map_err(|e| de::Error::custom(format!("{:?}", e))))
+            .collect::<Result<Vec<_>, _>>()?)
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut vec = Vec::new();
+        while let Some(element) = seq.next_element::<String>()? {
+            let element = element.trim().to_string();
+            if element.is_empty() {
+                continue;
+            }
+            let addr =
+                Addr::from_str(&element).map_err(|e| de::Error::custom(format!("{:?}", e)))?;
+            vec.push(addr);
+        }
+        Ok(vec)
+    }
+}

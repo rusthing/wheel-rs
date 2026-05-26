@@ -27,3 +27,4 @@ pub mod serde;
 pub mod str_utils;
 pub mod time_utils;
 pub mod urn_utils;
+pub mod addr_utils;
