@@ -22,5 +22,6 @@ pub mod u64_serde;
 pub mod vec_addr_serde;
 pub mod vec_ipnet_serde;
 pub mod vec_option_serde;
+pub mod vec_regex_serde;
 pub mod vec_serde;
 pub mod vec_urn_serde;
