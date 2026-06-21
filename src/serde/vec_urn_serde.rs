@@ -48,8 +48,8 @@ impl<'de> Visitor<'de> for UrnVecVisitor {
             .split(',')
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
-            .map(|s| Urn::new(s))
-            .collect())
+            .map(|s| Urn::from_str(&s).map_err(|e| de::Error::custom(format!("{e:?}"))))
+            .collect::<Result<Vec<_>, _>>()?)
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -62,7 +62,7 @@ impl<'de> Visitor<'de> for UrnVecVisitor {
             if element.is_empty() {
                 continue;
             }
-            vec.push(Urn::new(element));
+            vec.push(Urn::from_str(&element).map_err(|e| de::Error::custom(format!("{e:?}")))?);
         }
         Ok(vec)
     }
