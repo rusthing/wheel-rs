@@ -12,7 +12,7 @@ repository = "https://github.com/rusthing/wheel-rs"
 readme = "README.md"
 
 [dependencies]
-log = "0.4.30"
+log = "0.4.33"
 tracing-appender = "0.2.4"
 thiserror = "2.0.18"
 serde = "1.0.228"
@@ -21,7 +21,7 @@ sha2 = "0.11.0"
 hex = "0.4.3"
 dns-lookup = "3.0.1"
 tokio = { version = "1.52.3", features = ["macros", "signal", "process", "io-util", "sync", "rt", "time"] }
-bytes = "1.11.1"
+bytes = "1.12.0"
 nix = { version = "0.31.2", features = ["signal"] }
 libc = "1.0.0-alpha.3"
 ipnet = "2.12.0"
