@@ -8,7 +8,7 @@
 //! - 杀死进程
 
 use crate::cmd::cmd_error::CmdError;
-use log::debug;
+use tracing::debug;
 use std::process::{Child, Command};
 
 /// # 执行外部命令

@@ -1,6 +1,6 @@
 [package]
 name = "wheel-rs"
-version = "1.8.0"
+version = "1.8.1"
 edition = "2024"
 authors = ["zbz"]
 keywords = ["tools", "utils"]
@@ -13,6 +13,7 @@ readme = "README.md"
 
 [dependencies]
 log = "0.4.33"
+tracing = "0.1.44"
 tracing-appender = "0.2.4"
 thiserror = "2.0.18"
 serde = "1.0.228"

@@ -8,7 +8,7 @@
 //! - 杀死进程
 use crate::cmd::cmd_error::CmdError;
 use bytes::Bytes;
-use log::{debug, error, trace, warn};
+use tracing::{debug, error, trace, warn};
 use std::process::Stdio;
 use tokio::io::{AsyncReadExt, BufReader};
 use tokio::process::{Child, ChildStdout, Command};

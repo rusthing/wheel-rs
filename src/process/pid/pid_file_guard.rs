@@ -5,7 +5,7 @@
 
 use crate::process::pid::pid_utils::delete_pid_file_if_my_process;
 use crate::process::{write_pid, PidError};
-use log::warn;
+use tracing::warn;
 use std::path::PathBuf;
 
 /// # PID 文件守卫

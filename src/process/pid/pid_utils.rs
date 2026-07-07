@@ -4,7 +4,7 @@
 //! 包括PID文件的读取、写入、删除以及进程身份验证等功能。
 
 use crate::process::PidError;
-use log::{debug, info};
+use tracing::{debug, info};
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;

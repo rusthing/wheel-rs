@@ -12,7 +12,7 @@
 //! ```
 
 use dns_lookup::lookup_host;
-use log::info;
+use tracing::info;
 use std::net::IpAddr;
 
 /// # 解析主机的字符串成IP地址

@@ -5,7 +5,7 @@
 
 use crate::process::SignalError;
 use libc::pid_t;
-use log::{debug, info};
+use tracing::{debug, info};
 use nix::sys::signal::kill;
 use nix::unistd::Pid;
 use tokio::signal::unix::{signal, SignalKind};
