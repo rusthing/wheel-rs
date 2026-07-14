@@ -19,7 +19,7 @@
 //! assert!(matches!(urn.method, Method::Get));
 //! assert_eq!(urn.url, "example.com");
 //! ```
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 /// # HTTP 方法枚举
@@ -86,6 +86,15 @@ pub struct Urn {
 pub enum UrnError {
     #[error("Fail to parse Urn string: {0}")]
     Parse(String),
+}
+
+impl Serialize for Urn {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
+    }
 }
 
 impl<'de> Deserialize<'de> for Urn {
