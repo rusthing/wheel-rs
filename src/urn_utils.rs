@@ -75,13 +75,13 @@ impl std::fmt::Display for Method {
 }
 
 impl Method {
-    pub fn from_str(method: &str) -> Result<Self> {
+    pub fn from_str(method: &str) -> Result<Self, MethodError> {
         match method.to_uppercase().as_str() {
-            "GET" => Self::Get,
-            "POST" => Self::Post,
-            "PUT" => Self::Put,
-            "DELETE" => Self::Delete,
-            _ => panic!("Invalid method: {}", method),
+            "GET" => Ok(Self::Get),
+            "POST" => Ok(Self::Post),
+            "PUT" => Ok(Self::Put),
+            "DELETE" => Ok(Self::Delete),
+            _ => Err(MethodError::Parse(format!("Invalid method: {}", method))),
         }
     }
 }
@@ -90,6 +90,8 @@ impl Method {
 pub enum UrnError {
     #[error("Fail to parse Urn string: {0}")]
     Parse(String),
+    #[error("{0}")]
+    InvalidMethod(#[from] MethodError),
 }
 
 /// # URN 结构体
@@ -132,6 +134,13 @@ impl std::fmt::Display for Urn {
 }
 
 impl Urn {
+    pub fn new(method: String, url: String) -> Result<Self, UrnError> {
+        Ok(Self {
+            method: Method::from_str(&method)?,
+            url,
+        })
+    }
+
     /// # 创建一个新的 URN 实例
     ///
     /// ## 参数
