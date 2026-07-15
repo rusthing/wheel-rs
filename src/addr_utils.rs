@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -7,7 +8,7 @@ pub enum AddrError {
     Parse(String),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Addr {
     pub host: String,
     pub port: Option<u16>,
@@ -35,12 +36,14 @@ impl Addr {
         }
         Ok(Addr { host, port })
     }
+}
 
-    pub fn to_string(&self) -> String {
+impl Display for Addr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(port) = self.port {
-            format!("{}:{}", self.host, port)
+            write!(f, "{}:{}", self.host, port)
         } else {
-            self.host.clone()
+            write!(f, "{}", self.host)
         }
     }
 }

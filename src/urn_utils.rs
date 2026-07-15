@@ -22,10 +22,16 @@
 use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
+#[derive(Debug, Error)]
+pub enum MethodError {
+    #[error("Fail to parse method string: {0}")]
+    Parse(String),
+}
+
 /// # HTTP 方法枚举
 ///
 /// 定义了常用的 HTTP 方法类型，包括 GET、POST、PUT 和 DELETE
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Method {
     /// GET 方法 - 用于请求获取资源
     Get,
@@ -68,24 +74,36 @@ impl std::fmt::Display for Method {
     }
 }
 
-/// # URN 结构体
-///
-/// 用于表示统一资源名称（Uniform Resource Name），包含方法和 URL 两部分
-/// 支持两种格式：
-/// 1. 显式指定方法：`GET:example.com`
-/// 2. HTTP/HTTPS 前缀：`http:example.com` 或 `https:example.com`
-#[derive(Debug, Clone, PartialEq)]
-pub struct Urn {
-    /// HTTP 方法
-    pub method: Method,
-    /// 资源 URL
-    pub url: String,
+impl Method {
+    pub fn from_str(method: &str) -> Result<Self> {
+        match method.to_uppercase().as_str() {
+            "GET" => Self::Get,
+            "POST" => Self::Post,
+            "PUT" => Self::Put,
+            "DELETE" => Self::Delete,
+            _ => panic!("Invalid method: {}", method),
+        }
+    }
 }
 
 #[derive(Debug, Error)]
 pub enum UrnError {
     #[error("Fail to parse Urn string: {0}")]
     Parse(String),
+}
+
+/// # URN 结构体
+///
+/// 用于表示统一资源名称（Uniform Resource Name），包含方法和 URL 两部分
+/// 支持两种格式：
+/// 1. 显式指定方法：`GET:example.com`
+/// 2. HTTP/HTTPS 前缀：`http:example.com` 或 `https:example.com`
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Urn {
+    /// HTTP 方法
+    pub method: Method,
+    /// 资源 URL
+    pub url: String,
 }
 
 impl Serialize for Urn {
