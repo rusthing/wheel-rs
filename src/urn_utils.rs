@@ -103,7 +103,7 @@ pub enum UrnError {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Urn {
     /// HTTP 方法
-    pub method: Method,
+    pub method: Option<Method>,
     /// 资源 URL
     pub url: String,
 }
@@ -129,16 +129,18 @@ impl<'de> Deserialize<'de> for Urn {
 
 impl std::fmt::Display for Urn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.method.to_string(), self.url)
+        if let Some(method) = &self.method {
+            write!(f, "{}:{}", method.to_string(), self.url)
+        } else {
+            write!(f, "{}", self.url)
+        }
     }
 }
 
 impl Urn {
-    pub fn new(method: String, url: String) -> Result<Self, UrnError> {
-        Ok(Self {
-            method: Method::from_str(&method)?,
-            url,
-        })
+    pub fn new(method: Option<String>, url: String) -> Result<Self, UrnError> {
+        let method = method.map(|m| Method::from_str(&m)).transpose()?;
+        Ok(Self { method, url })
     }
 
     /// # 创建一个新的 URN 实例
@@ -174,7 +176,7 @@ impl Urn {
     pub fn from_str(urn: &str) -> Result<Self, UrnError> {
         if urn.starts_with("http:") || urn.starts_with("https:") {
             return Ok(Self {
-                method: Method::Get,
+                method: Some(Method::Get),
                 url: urn.to_string(),
             });
         }
@@ -182,8 +184,8 @@ impl Urn {
         // 按 ':' 分割URN获取method和url
         let parts: Vec<&str> = urn.splitn(2, ':').collect();
         let (method, url) = match parts.len() {
-            1 => ("GET", parts[0].trim()),
-            2 => (parts[0].trim(), parts[1].trim()),
+            1 => (None, parts[0].trim()),
+            2 => (Some(parts[0].trim()), parts[1].trim()),
             _ => Err(UrnError::Parse(format!("Invalid URN \"{urn}\"")))?,
         };
 
@@ -191,14 +193,10 @@ impl Urn {
             Err(UrnError::Parse(format!("Invalid URN \"{urn}\"")))?
         }
 
+        let method = method.map(|m| Method::from_str(&m)).transpose()?;
+
         Ok(Self {
-            method: match method.to_uppercase().as_str() {
-                "GET" => Method::Get,
-                "POST" => Method::Post,
-                "PUT" => Method::Put,
-                "DELETE" => Method::Delete,
-                _ => panic!("Invalid method: {}", method),
-            },
+            method,
             url: url.to_string(),
         })
     }
@@ -224,7 +222,12 @@ impl Urn {
     /// assert!(!urn.matches("POST", "example.com"));
     /// ```
     pub fn matches(&self, method: &str, url: &str) -> bool {
-        self.method.to_string() == method.to_uppercase() && url.starts_with(&self.url)
+        if let Some(self_method) = &self.method {
+            if self_method.to_string() != method.to_uppercase() {
+                return false;
+            }
+        }
+        url.starts_with(&self.url)
     }
 }
 
@@ -235,14 +238,14 @@ mod tests {
     #[test]
     fn test_urn_new() {
         let urn = Urn::from_str("GET:example.com").unwrap();
-        assert!(matches!(urn.method, Method::Get));
+        assert!(matches!(urn.method, Some(Method::Get)));
         assert_eq!(urn.url, "example.com");
     }
 
     #[test]
     fn test_urn_with_complex_url() {
         let urn = Urn::from_str("POST:api.example.com/v1/users").unwrap();
-        assert!(matches!(urn.method, Method::Post));
+        assert!(matches!(urn.method, Some(Method::Post)));
         assert_eq!(urn.url, "api.example.com/v1/users");
     }
 
@@ -255,11 +258,11 @@ mod tests {
     #[test]
     fn test_http_prefix_urls() {
         let urn = Urn::from_str("http:example.com").unwrap();
-        assert!(matches!(urn.method, Method::Get));
+        assert!(matches!(urn.method, Some(Method::Get)));
         assert_eq!(urn.url, "http:example.com");
 
         let urn = Urn::from_str("https:example.com").unwrap();
-        assert!(matches!(urn.method, Method::Get));
+        assert!(matches!(urn.method, Some(Method::Get)));
         assert_eq!(urn.url, "https:example.com");
     }
 }

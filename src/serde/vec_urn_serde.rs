@@ -11,8 +11,7 @@ where
 {
     let mut seq = serializer.serialize_seq(Some(vec.len()))?;
     for element in vec {
-        let urn_str = format!("{}:{}", element.method.to_string(), element.url);
-        seq.serialize_element(&urn_str)?;
+        seq.serialize_element(&element.to_string())?;
     }
     seq.end()
 }
