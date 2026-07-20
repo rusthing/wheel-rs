@@ -41,6 +41,12 @@ pub enum Method {
     Put,
     /// DELETE 方法 - 用于删除资源
     Delete,
+    /// OPTIONS 方法 - 用于获取资源的可用方法
+    Options,
+    /// HEAD 方法 - 用于请求获取资源的header头，不返回Body
+    Head,
+    /// PATCH 方法 - 用于部分更新资源的指定字段
+    Patch,
 }
 
 impl<'de> Deserialize<'de> for Method {
@@ -54,6 +60,9 @@ impl<'de> Deserialize<'de> for Method {
             "POST" => Ok(Method::Post),
             "PUT" => Ok(Method::Put),
             "DELETE" => Ok(Method::Delete),
+            "OPTIONS" => Ok(Method::Options),
+            "HEAD" => Ok(Method::Head),
+            "PATCH" => Ok(Method::Patch),
             _ => Err(serde::de::Error::custom(format!("Invalid method: {}", s))),
         }
     }
@@ -69,6 +78,9 @@ impl std::fmt::Display for Method {
                 Method::Post => "POST".to_string(),
                 Method::Put => "PUT".to_string(),
                 Method::Delete => "DELETE".to_string(),
+                Method::Options => "OPTIONS".to_string(),
+                Method::Head => "HEAD".to_string(),
+                Method::Patch => "PATCH".to_string(),
             }
         )
     }
@@ -81,6 +93,9 @@ impl Method {
             "POST" => Ok(Self::Post),
             "PUT" => Ok(Self::Put),
             "DELETE" => Ok(Self::Delete),
+            "OPTIONS" => Ok(Self::Options),
+            "HEAD" => Ok(Self::Head),
+            "PATCH" => Ok(Self::Patch),
             _ => Err(MethodError::Parse(format!("Invalid method: {}", method))),
         }
     }
