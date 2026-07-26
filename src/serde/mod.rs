@@ -25,3 +25,5 @@ pub mod vec_option_serde;
 pub mod vec_regex_serde;
 pub mod vec_serde;
 pub mod vec_urn_serde;
+pub mod resolve_hosts_serde;
+pub mod resolve_hosts_option_serde;
