@@ -29,7 +29,7 @@ use std::path::Path;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time::{sleep_until, Instant};
-use tracing::info;
+use tracing::{error, info};
 
 /// # 获取文件名的扩展名
 ///
@@ -229,14 +229,15 @@ impl FileWatcher {
     }
 }
 
-pub fn watch_file<F>(
+pub fn watch_file<F, Fut>(
     files: Vec<String>,
     debounce_delay: Duration,
     watch_channel: Option<(watch::Sender<Event>, watch::Receiver<Event>)>,
     mut on_change: F,
 ) -> notify::Result<FileWatcher>
 where
-    F: FnMut() -> () + Send + 'static,
+    F: FnMut(Event) -> Fut + Send + 'static,
+    Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
     let (file_changed_tx, mut file_changed_rx) =
         watch_channel.unwrap_or(watch::channel(Event::default()));
@@ -246,7 +247,11 @@ where
         loop {
             match file_changed_rx.changed().await {
                 Ok(_) => {
-                    on_change();
+                    let event = file_changed_rx.borrow().clone();
+                    if let Err(e) = on_change(event).await {
+                        error!("handle file change error: {e:?}");
+                        break;
+                    }
                 }
                 Err(err) => {
                     info!("watch file error: {:?}", err);
