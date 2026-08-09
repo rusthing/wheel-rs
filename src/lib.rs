@@ -18,6 +18,7 @@
 //! - [cmd]: 命令行执行工具
 //! - [serde]: 自定义序列化/反序列化实现
 
+pub mod addr_utils;
 pub mod cmd;
 pub mod dns_utils;
 pub mod file_utils;
@@ -27,4 +28,3 @@ pub mod serde;
 pub mod str_utils;
 pub mod time_utils;
 pub mod urn_utils;
-pub mod addr_utils;

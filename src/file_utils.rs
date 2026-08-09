@@ -19,11 +19,17 @@
 //! // let hash = calc_hash(Path::new("test.txt"));
 //! // println!("文件哈希值: {}", hash);
 //! ```
+
+use notify::{Event, RecursiveMode, Watcher};
 use sha2::Digest;
 use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::path::Path;
+use std::time::Duration;
+use tokio::sync::watch;
+use tokio::time::{sleep_until, Instant};
+use tracing::info;
 
 /// # 获取文件名的扩展名
 ///
@@ -142,4 +148,119 @@ pub fn is_cross_device_error(err: &io::Error) -> bool {
             }
         }
     }
+}
+
+pub struct FileWatcher {
+    _watcher: Box<dyn Watcher>,
+    debounce_join_handle: tokio::task::JoinHandle<()>,
+    watch_join_handle: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for FileWatcher {
+    fn drop(&mut self) {
+        self.debounce_join_handle.abort();
+        self.watch_join_handle.abort();
+    }
+}
+
+impl FileWatcher {
+    pub fn new(
+        files: &Vec<String>,
+        debounce_delay: Duration,
+        file_changed_tx: watch::Sender<Event>,
+        watch_join_handle: tokio::task::JoinHandle<()>,
+    ) -> notify::Result<Self> {
+        let (event_tx, mut event_rx) = watch::channel(Event::default());
+
+        // 去抖动任务
+        let debounce_join_handle = tokio::spawn(async move {
+            let sleep = sleep_until(Instant::now() + Duration::from_millis(u64::MAX)); // 初始设置为永不触发
+            let mut latest_event = Event::default(); // 存储最新事件
+            // 把局部变量放到栈上的固定位置，否则在select!中无法保证其内存位置不变
+            tokio::pin!(sleep);
+            loop {
+                tokio::select! {
+                    // 当 watch 通道变化时，重置定时器
+                    res = event_rx.changed() => {
+                        match res {
+                            Ok(_) => {
+                                // 取出最新事件
+                                latest_event = event_rx.borrow().clone();
+                                // 重置定时器为 debounce_duration
+                                sleep.as_mut().reset(Instant::now() + debounce_delay);
+                            }
+                            Err(err) => {
+                                info!("watch file error: {:?}", err);
+                                break;
+                            }
+                        }
+                    }
+                    // 定时器到期 -> 输出最新值
+                    _ = &mut sleep => {
+                        let _ = file_changed_tx.send(latest_event.clone());
+                        // 重新设置为永不触发，直到下次监听到变化
+                        sleep.as_mut().reset(Instant::now() + Duration::from_millis(u64::MAX));
+                    }
+                }
+            }
+        });
+
+        // 创建 watcher，过滤非修改和删除事件，发送最新事件到 event_tx
+        let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| {
+            if let Ok(event) = res {
+                if !(event.kind.is_modify() || event.kind.is_remove()) {
+                    return;
+                }
+                if event.clone().paths.into_iter().next().is_some() {
+                    let _ = event_tx.send(event);
+                }
+            }
+        })?;
+
+        for file in files {
+            watcher.watch(Path::new(file), RecursiveMode::NonRecursive)?;
+        }
+
+        Ok(Self {
+            _watcher: Box::new(watcher),
+            debounce_join_handle,
+            watch_join_handle,
+        })
+    }
+}
+
+pub fn watch_file<F>(
+    files: Vec<String>,
+    debounce_delay: Duration,
+    watch_channel: Option<(watch::Sender<Event>, watch::Receiver<Event>)>,
+    mut on_change: F,
+) -> notify::Result<FileWatcher>
+where
+    F: FnMut() -> () + Send + 'static,
+{
+    let (file_changed_tx, mut file_changed_rx) =
+        watch_channel.unwrap_or(watch::channel(Event::default()));
+    let files_clone = files.clone();
+    let watch_join_handle = tokio::spawn(async move {
+        info!("watch file: {:?}", files_clone);
+        loop {
+            match file_changed_rx.changed().await {
+                Ok(_) => {
+                    on_change();
+                }
+                Err(err) => {
+                    info!("watch file error: {:?}", err);
+                    break;
+                }
+            }
+        }
+        info!("file watcher task exit: {:?}", files_clone);
+    });
+    let file_watcher = FileWatcher::new(
+        files.as_ref(),
+        debounce_delay,
+        file_changed_tx.clone(),
+        watch_join_handle,
+    );
+    file_watcher
 }
