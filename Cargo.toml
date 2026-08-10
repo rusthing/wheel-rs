@@ -12,6 +12,7 @@ repository = "https://github.com/rusthing/wheel-rs"
 readme = "README.md"
 
 [dependencies]
+anyhow = "1.0.104"
 log = "0.4.33"
 tracing = "0.1.44"
 tracing-appender = "0.2.5"

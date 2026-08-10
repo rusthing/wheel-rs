@@ -232,15 +232,13 @@ impl FileWatcher {
 pub fn watch_file<F, Fut>(
     files: Vec<String>,
     debounce_delay: Duration,
-    watch_channel: Option<(watch::Sender<Event>, watch::Receiver<Event>)>,
     mut on_change: F,
 ) -> notify::Result<FileWatcher>
 where
     F: FnMut(Event) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    let (file_changed_tx, mut file_changed_rx) =
-        watch_channel.unwrap_or(watch::channel(Event::default()));
+    let (file_changed_tx, mut file_changed_rx) = watch::channel(Event::default());
     let files_clone = files.clone();
     let watch_join_handle = tokio::spawn(async move {
         info!("watch file: {:?}", files_clone);
