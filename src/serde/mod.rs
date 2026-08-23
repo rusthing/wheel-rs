@@ -12,10 +12,13 @@
 
 pub mod duration_option_serde;
 pub mod duration_serde;
+pub mod log_filter_option_serde;
 pub mod log_filter_serde;
 pub mod option_option_serde;
 pub mod path_buf_option_serde;
 pub mod path_buf_serde;
+pub mod resolve_hosts_option_serde;
+pub mod resolve_hosts_serde;
 pub mod rotation_serde;
 pub mod u64_option_serde;
 pub mod u64_serde;
@@ -25,5 +28,4 @@ pub mod vec_option_serde;
 pub mod vec_regex_serde;
 pub mod vec_serde;
 pub mod vec_urn_serde;
-pub mod resolve_hosts_serde;
-pub mod resolve_hosts_option_serde;
+pub mod duration_option_option_serde;
