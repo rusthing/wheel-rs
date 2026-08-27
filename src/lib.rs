@@ -20,6 +20,7 @@
 
 pub mod addr_utils;
 pub mod cmd;
+pub mod config_utils;
 pub mod dns_utils;
 pub mod file_utils;
 pub mod ipnet_utils;
