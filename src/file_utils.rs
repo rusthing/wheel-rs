@@ -229,7 +229,7 @@ impl FileWatcher {
     }
 }
 
-pub fn watch_file<F, Fut>(
+pub fn watch_file_changed<F, Fut>(
     files: Vec<String>,
     debounce_delay: Duration,
     mut on_change: F,
