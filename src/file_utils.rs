@@ -197,6 +197,7 @@ impl FileWatcher {
                     }
                     // 定时器到期 -> 输出最新值
                     _ = &mut sleep => {
+                        info!("debounce fired, forwarding event: {:?}", latest_event.paths);
                         let _ = file_changed_tx.send(latest_event.clone());
                         // 重新设置为永不触发，直到下次监听到变化
                         sleep.as_mut().reset(Instant::now() + Duration::from_millis(u64::MAX));
@@ -206,18 +207,26 @@ impl FileWatcher {
         });
 
         // 创建 watcher，过滤非修改和删除事件，发送最新事件到 event_tx
+        info!("file watcher start watching: {:?}", files);
         let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| {
-            if let Ok(event) = res {
-                if !(event.kind.is_modify() || event.kind.is_remove()) {
-                    return;
+            match res {
+                Ok(event) => {
+                    info!("notify raw event: kind={:?}, paths={:?}", event.kind, event.paths);
+                    if !(event.kind.is_modify() || event.kind.is_remove()) {
+                        return;
+                    }
+                    if event.clone().paths.into_iter().next().is_some() {
+                        let _ = event_tx.send(event);
+                    }
                 }
-                if event.clone().paths.into_iter().next().is_some() {
-                    let _ = event_tx.send(event);
+                Err(e) => {
+                    error!("notify watcher error: {:?}", e);
                 }
             }
         })?;
 
         for file in files {
+            info!("watching file: {}", file);
             watcher.watch(Path::new(file), RecursiveMode::NonRecursive)?;
         }
 
@@ -246,6 +255,7 @@ where
             match file_changed_rx.changed().await {
                 Ok(_) => {
                     let event = file_changed_rx.borrow().clone();
+                    info!("watch task received event, calling on_change: {:?}", event.paths);
                     if let Err(e) = on_change(event).await {
                         warn!("handle file change error: {e:?}");
                     }
