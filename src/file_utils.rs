@@ -29,7 +29,7 @@ use std::path::Path;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time::{sleep_until, Instant};
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 /// # 获取文件名的扩展名
 ///
@@ -241,23 +241,21 @@ where
     let (file_changed_tx, mut file_changed_rx) = watch::channel(Event::default());
     let files_clone = files.clone();
     let watch_join_handle = tokio::spawn(async move {
-        info!("watch file: {:?}", files_clone);
+        info!("watch file changed: {:?}", files_clone);
         loop {
             match file_changed_rx.changed().await {
                 Ok(_) => {
                     let event = file_changed_rx.borrow().clone();
                     if let Err(e) = on_change(event).await {
-                        error!("handle file change error: {e:?}");
-                        break;
+                        warn!("handle file change error: {e:?}");
                     }
                 }
                 Err(err) => {
-                    info!("watch file error: {:?}", err);
+                    error!("watch file error: {:?}", err);
                     break;
                 }
             }
         }
-        info!("file watcher task exit: {:?}", files_clone);
     });
     let file_watcher = FileWatcher::new(
         files.as_ref(),
