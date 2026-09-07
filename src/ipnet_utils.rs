@@ -28,16 +28,26 @@ pub fn is_exact(net: &IpNet) -> bool {
 /// 获取本机首个非 loopback 的 IPv4 地址。
 ///
 /// 通过遍历系统网卡接口获取，不依赖外网连通性。
-pub fn get_local_ip() -> Result<String, IpnetError> {
+///
+/// ## 参数
+/// * `sub_net` - 可选的子网掩码，若传入则仅返回匹配该子网的 IP。
+pub fn get_local_ip(sub_net: Option<IpNet>) -> Result<String, IpnetError> {
     use nix::ifaddrs::getifaddrs;
     let addrs = getifaddrs().map_err(|_| IpnetError::NoLocalIp)?;
     for addr in addrs {
         if let Some(sockaddr) = addr.address {
             if let Some(sin) = sockaddr.as_sockaddr_in() {
                 let ip = sin.ip().to_string();
-                if ip != "127.0.0.1" {
-                    return Ok(ip);
+                if ip == "127.0.0.1" {
+                    continue;
                 }
+                if let Some(ref net) = sub_net {
+                    let ip_addr: std::net::IpAddr = sin.ip().into();
+                    if !net.contains(&ip_addr) {
+                        continue;
+                    }
+                }
+                return Ok(ip);
             }
         }
     }

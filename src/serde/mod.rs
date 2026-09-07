@@ -10,8 +10,11 @@
 //! - [u64_serde] - 为 `u64` 提供自定义序列化，支持字符串和数字格式
 //! - [vec_option_serde] - 为 `Option<Vec<String>>` 提供自定义序列化
 
+pub mod duration_option_option_serde;
 pub mod duration_option_serde;
 pub mod duration_serde;
+pub mod ipnet_option_serde;
+pub mod ipnet_serde;
 pub mod log_filter_option_serde;
 pub mod log_filter_serde;
 pub mod option_option_serde;
@@ -28,4 +31,3 @@ pub mod vec_option_serde;
 pub mod vec_regex_serde;
 pub mod vec_serde;
 pub mod vec_urn_serde;
-pub mod duration_option_option_serde;
