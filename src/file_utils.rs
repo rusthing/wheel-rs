@@ -1,23 +1,17 @@
 //! # 文件工具模块
-//! 提供文件操作相关的实用工具函数
 //!
-//! 该模块包含以下主要功能：
+//! 提供文件操作相关的实用工具函数：
 //! - 获取文件扩展名
 //! - 计算文件的 SHA256 哈希值
 //! - 检测跨设备操作错误
+//! - 监听文件变更（带去抖动）
 //!
 //! ## 示例
 //!
 //! ```
-//! use wheel_rs::file_utils::{get_file_ext, calc_hash_of_file};
+//! use wheel_rs::file_utils::get_file_ext;
 //!
-//! // 获取文件扩展名
-//! let ext = get_file_ext("example.TXT");
-//! assert_eq!(ext, "txt");
-//!
-//! // 计算文件哈希值
-//! // let hash = calc_hash(Path::new("test.txt"));
-//! // println!("文件哈希值: {}", hash);
+//! assert_eq!(get_file_ext("example.TXT").as_deref(), Some("txt"));
 //! ```
 
 use notify::{Event, RecursiveMode, Watcher};
@@ -33,26 +27,38 @@ use tracing::{error, info, warn};
 
 /// # 获取文件名的扩展名
 ///
-/// 该函数从给定的文件名中提取扩展名部分。扩展名被定义为文件名中最后一个点（`.`）之后的部分，
-/// 并且会被转换为小写形式。
+/// 取文件名中最后一个点（`.`）之后的部分，并统一转换为小写。
 ///
 /// ## 参数
 ///
-/// * `file_name` - 包含文件名的字符串切片引用
+/// * `file_name` - 文件名字符串切片
 ///
 /// ## 返回值
 ///
-/// 返回文件的扩展名（不包括点号），如果文件名中没有点号则返回空字符串。
-/// 扩展名会被自动转换为小写形式。
+/// 返回小写化的扩展名（不含点号）。**该函数始终返回 `Some`**，`Option` 只是历史签名遗留：
+/// 输入不含点号时，`split('.').last()` 得到的是整个输入本身，而不是空字符串。
+/// 需要区分"无扩展名"时，调用方应自行判断输入是否包含 `.`。
+///
+/// 几种边界输入的实测行为：
+///
+/// | 输入 | 返回 |
+/// | --- | --- |
+/// | `"example.TXT"` | `Some("txt")` |
+/// | `"file_without_extension"` | `Some("file_without_extension")` |
+/// | `".gitignore"` | `Some("gitignore")` |
+/// | `"trailing."` | `Some("")` |
+/// | `""` | `Some("")` |
 ///
 /// ## 示例
 ///
 /// ```
 /// use wheel_rs::file_utils::get_file_ext;
 ///
-/// assert_eq!(get_file_ext("example.TXT"), "txt");
-/// assert_eq!(get_file_ext("document.pdf"), "pdf");
-/// assert_eq!(get_file_ext("file_without_extension"), "");
+/// assert_eq!(get_file_ext("example.TXT").as_deref(), Some("txt"));
+/// assert_eq!(get_file_ext("document.pdf").as_deref(), Some("pdf"));
+/// assert_eq!(get_file_ext("a.b.c").as_deref(), Some("c"));
+/// // 注意：无扩展名时返回的是整个文件名，而非空字符串
+/// assert_eq!(get_file_ext("README").as_deref(), Some("readme"));
 /// ```
 pub fn get_file_ext(file_name: &str) -> Option<String> {
     file_name
@@ -63,31 +69,28 @@ pub fn get_file_ext(file_name: &str) -> Option<String> {
 
 /// # 计算指定文件的 SHA256 哈希值
 ///
-/// 该函数会打开指定路径的文件，并计算其完整的 SHA256 哈希值。
-/// 使用 8192 字节的缓冲区以高效地处理大文件。
+/// 打开指定路径的文件并计算其完整 SHA256 哈希值，内部使用 8192 字节缓冲区流式读取，
+/// 因此可以处理远大于内存的文件。
 ///
 /// ## 参数
 ///
-/// * `path` - 指向要计算哈希值的文件路径
+/// * `path` - 要计算哈希值的文件路径
 ///
 /// ## 返回值
 ///
-/// 返回表示文件 SHA256 哈希值的小写十六进制字符串。
-///
-/// ## Panics
-///
-/// 当无法打开文件或读取过程中发生错误时，函数会 panic。
-/// 在生产环境中应适当处理这些错误情况。
+/// * `Ok(String)` - 文件 SHA256 哈希值的小写十六进制字符串（64 个字符）。
+/// * `Err(io::Error)` - 文件无法打开或读取过程中出错，**不会 panic**。
 ///
 /// ## 示例
 ///
-/// ```
+/// ```no_run
 /// use std::path::Path;
 /// use wheel_rs::file_utils::calc_hash_of_file;
 ///
-/// // 假设存在一个名为 "test.txt" 的文件
-/// let hash = calc_hash_of_file(Path::new("test.txt"));
-/// println!("文件哈希值: {}", hash);
+/// // 需要替换为真实存在的文件路径；文件不存在时返回 Err 而非 panic
+/// let hash = calc_hash_of_file(Path::new("test.txt"))?;
+/// println!("文件哈希值: {hash}");
+/// # Ok::<(), std::io::Error>(())
 /// ```
 pub fn calc_hash_of_file(path: &Path) -> Result<String, io::Error> {
     let mut file = File::open(path)?;
@@ -106,18 +109,18 @@ pub fn calc_hash_of_file(path: &Path) -> Result<String, io::Error> {
 
 /// # 检查 IO 错误是否为跨设备错误
 ///
-/// 跨设备错误通常发生在尝试移动或重命名文件时，源文件和目标路径位于不同的文件系统或设备上。
-/// 此函数检测不同操作系统上的跨设备错误：
-/// - 在 Unix 系统上检查 EXDEV 错误 (错误码 18)
-/// - 在 Windows 系统上检查 ERROR_NOT_SAME_DEVICE 错误 (错误码 17)
+/// 跨设备错误通常发生在移动或重命名文件时，源文件与目标路径位于不同文件系统上。
+/// 各平台的判定方式：
+/// - Unix：匹配 `io::ErrorKind::CrossesDevices`（对应 `EXDEV`）
+/// - Windows：匹配原始错误码 17（`ERROR_NOT_SAME_DEVICE`）
 ///
 /// ## 参数
 ///
-/// * `err` - 要检查的 IO 错误引用
+/// * `err` - 待检查的 IO 错误引用
 ///
 /// ## 返回值
 ///
-/// 如果错误是跨设备错误则返回 `true`，否则返回 `false`。
+/// 是跨设备错误则返回 `true`，否则返回 `false`。
 ///
 /// ## 示例
 ///
@@ -125,10 +128,15 @@ pub fn calc_hash_of_file(path: &Path) -> Result<String, io::Error> {
 /// use std::io;
 /// use wheel_rs::file_utils::is_cross_device_error;
 ///
-/// let error = io::Error::new(io::ErrorKind::InvalidInput, "cross-device link");
-/// if is_cross_device_error(&error) {
-///     println!("检测到跨设备错误");
+/// #[cfg(unix)]
+/// {
+///     let exdev = io::Error::from(io::ErrorKind::CrossesDevices);
+///     assert!(is_cross_device_error(&exdev));
 /// }
+///
+/// // 其他类型的错误不会被判定为跨设备错误
+/// let invalid = io::Error::new(io::ErrorKind::InvalidInput, "bad input");
+/// assert!(!is_cross_device_error(&invalid));
 /// ```
 pub fn is_cross_device_error(err: &io::Error) -> bool {
     match err.kind() {
@@ -150,6 +158,13 @@ pub fn is_cross_device_error(err: &io::Error) -> bool {
     }
 }
 
+/// # 文件监听器
+///
+/// 封装 `notify` 的底层 watcher 与两个后台 tokio 任务（去抖动任务、事件转发任务）。
+/// 通常不需要直接构造，优先使用 [`watch_file_changed`]。
+///
+/// 持有期间持续监听文件变更；被 drop 时会自动 abort 两个后台任务，
+/// 因此**必须保持该值存活**，否则监听会立即停止。
 pub struct FileWatcher {
     _watcher: Box<dyn Watcher>,
     debounce_join_handle: tokio::task::JoinHandle<()>,
@@ -164,6 +179,24 @@ impl Drop for FileWatcher {
 }
 
 impl FileWatcher {
+    /// # 创建文件监听器
+    ///
+    /// 启动去抖动任务并开始监听给定文件。只关注修改（modify）与删除（remove）事件，
+    /// 其余事件会被直接忽略。监听为非递归模式（`RecursiveMode::NonRecursive`）。
+    ///
+    /// 需在 tokio 运行时中调用，因为内部使用 `tokio::spawn`。
+    ///
+    /// ## 参数
+    ///
+    /// * `files` - 要监听的文件路径列表
+    /// * `debounce_delay` - 去抖动延迟；该时间窗内的连续变更只会上报最后一次
+    /// * `file_changed_tx` - 去抖动后事件的发送端，由调用方负责消费
+    /// * `watch_join_handle` - 消费事件的任务句柄，drop 时会被 abort
+    ///
+    /// ## 返回值
+    ///
+    /// * `Ok(FileWatcher)` - 监听已启动
+    /// * `Err(notify::Error)` - watcher 创建失败或某个路径无法监听
     pub fn new(
         files: &Vec<String>,
         debounce_delay: Duration,
@@ -238,6 +271,43 @@ impl FileWatcher {
     }
 }
 
+/// # 监听文件变更并执行回调（推荐入口）
+///
+/// 对给定文件启动监听，变更事件经 `debounce_delay` 去抖动后触发 `on_change` 回调。
+/// 相比直接使用 [`FileWatcher::new`]，此函数已内置事件消费任务，调用方只需提供回调。
+///
+/// 需在 tokio 运行时中调用。回调返回的 `Err` 不会中断监听，仅记录 warn 日志后继续。
+///
+/// ## 参数
+///
+/// * `files` - 要监听的文件路径列表
+/// * `debounce_delay` - 去抖动延迟，短时间内的连续变更合并为一次回调
+/// * `on_change` - 变更回调，接收去抖动后的 `notify::Event`，返回 `Future`
+///
+/// ## 返回值
+///
+/// * `Ok(FileWatcher)` - 监听已启动。**需持有该返回值**，一旦 drop 监听即停止。
+/// * `Err(notify::Error)` - watcher 创建或路径监听失败
+///
+/// ## 示例
+///
+/// ```no_run
+/// use std::time::Duration;
+/// use wheel_rs::file_utils::watch_file_changed;
+///
+/// # async fn run() -> notify::Result<()> {
+/// let _watcher = watch_file_changed(
+///     vec!["config.toml".to_string()],
+///     Duration::from_millis(500),
+///     |event| async move {
+///         println!("文件已变更: {:?}", event.paths);
+///         Ok(())
+///     },
+/// )?;
+/// // _watcher 必须保持存活，否则监听会立即停止
+/// # Ok(())
+/// # }
+/// ```
 pub fn watch_file_changed<F, Fut>(
     files: Vec<String>,
     debounce_delay: Duration,

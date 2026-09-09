@@ -1,8 +1,8 @@
-//! # 序列化和反序列化 Duration 类型
+//! # 序列化和反序列化 `Option<Duration>` 类型
 //!
-//! 此模块提供了对 Option<Duration> 类型的自定义序列化和反序列化实现。
-//! 序列化时将 Duration 转换为字符串格式（如 "5s" 表示5秒），
-//! 反序列化时将字符串解析为 Duration。
+//! 此模块提供了对 `Option<Duration>` 类型的自定义序列化和反序列化实现。
+//! 序列化时将 `Some(Duration)` 转换为字符串格式（如 `"5s"` 表示 5 秒），`None` 转换为 `null`；
+//! 反序列化时将字符串解析为 `Duration`，`null` 解析为 `None`。
 //!
 //! ## 示例
 //!
@@ -27,14 +27,24 @@ use std::time::Duration;
 ///
 /// ## 示例
 ///
+/// 需通过 `#[serde(with = "...")]` 标注字段才会生效。
+///
 /// ```
-/// use wheel_rs::serde::duration_option_serde;
-/// use serde_json;
+/// use serde::{Deserialize, Serialize};
 /// use std::time::Duration;
 ///
-/// let duration = Some(Duration::from_secs(5));
-/// let serialized = serde_json::to_string(&duration).unwrap();
-/// assert_eq!(serialized, "\"5s\"");
+/// #[derive(Serialize, Deserialize)]
+/// struct Config {
+///     #[serde(with = "wheel_rs::serde::duration_option_serde")]
+///     timeout: Option<Duration>,
+/// }
+///
+/// let cfg = Config { timeout: Some(Duration::from_secs(5)) };
+/// assert_eq!(serde_json::to_string(&cfg).unwrap(), r#"{"timeout":"5s"}"#);
+///
+/// // None 序列化为 null
+/// let cfg = Config { timeout: None };
+/// assert_eq!(serde_json::to_string(&cfg).unwrap(), r#"{"timeout":null}"#);
 /// ```
 pub fn serialize<S>(duration: &Option<Duration>, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -56,13 +66,21 @@ where
 /// ## 示例
 ///
 /// ```
-/// use wheel_rs::serde::duration_option_serde;
-/// use serde_json;
+/// use serde::{Deserialize, Serialize};
 /// use std::time::Duration;
 ///
-/// let json = "\"5s\"";
-/// let deserialized: Option<Duration> = serde_json::from_str(json).unwrap();
-/// assert_eq!(deserialized, Some(Duration::from_secs(5)));
+/// #[derive(Serialize, Deserialize)]
+/// struct Config {
+///     #[serde(with = "wheel_rs::serde::duration_option_serde")]
+///     timeout: Option<Duration>,
+/// }
+///
+/// let cfg: Config = serde_json::from_str(r#"{"timeout":"5s"}"#).unwrap();
+/// assert_eq!(cfg.timeout, Some(Duration::from_secs(5)));
+///
+/// // null 解析为 None
+/// let cfg: Config = serde_json::from_str(r#"{"timeout":null}"#).unwrap();
+/// assert_eq!(cfg.timeout, None);
 /// ```
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Duration>, D::Error>
 where

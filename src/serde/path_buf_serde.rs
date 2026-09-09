@@ -15,14 +15,14 @@ use std::path::PathBuf;
 /// - `PathBuf::from("relative/path")` -> `"relative/path"`
 ///
 /// ## 示例
-/// ```rust
+/// ```
 /// use serde::Serialize;
 /// use std::path::PathBuf;
 ///
 /// #[derive(Serialize)]
 /// struct Example {
-/// #[serde(serialize_with = "crate::serde::path_buf_serde::serialize")]
-/// path: PathBuf,
+///     #[serde(serialize_with = "wheel_rs::serde::path_buf_serde::serialize")]
+///     path: PathBuf,
 /// }
 /// ```
 pub fn serialize<S>(path: &PathBuf, serializer: S) -> Result<S::Ok, S::Error>
@@ -39,22 +39,20 @@ where
 /// - `"/absolute/path"` -> `PathBuf::from("/absolute/path")`
 ///
 /// ## 示例
-/// ```rust
-/// use serde::{Serialize, Deserialize};
-/// use serde_json;
+/// ```
+/// use serde::{Deserialize, Serialize};
 /// use std::path::PathBuf;
 ///
 /// #[derive(Serialize, Deserialize)]
 /// struct Example {
-/// #[serde(
-/// serialize_with = "crate::serde::path_buf_serde::serialize",
-/// deserialize_with = "crate::serde::path_buf_serde::deserialize"
-/// )]
-/// path: PathBuf,
+///     #[serde(
+///         serialize_with = "wheel_rs::serde::path_buf_serde::serialize",
+///         deserialize_with = "wheel_rs::serde::path_buf_serde::deserialize"
+///     )]
+///     path: PathBuf,
 /// }
 ///
-/// let json = r#"{"path": "/home/user/file.txt"}"#;
-/// let example: Example = serde_json::from_str(json).unwrap();
+/// let example: Example = serde_json::from_str(r#"{"path": "/home/user/file.txt"}"#).unwrap();
 /// assert_eq!(example.path, PathBuf::from("/home/user/file.txt"));
 /// ```
 pub fn deserialize<'de, D>(deserializer: D) -> Result<PathBuf, D::Error>

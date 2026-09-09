@@ -17,12 +17,13 @@ use std::fmt;
 /// - `vec!["string1", "string2"]` -> `["string1", "string2"]`
 ///
 /// ## 示例
-/// ```rust
+/// ```
 /// use serde::Serialize;
+///
 /// #[derive(Serialize)]
 /// struct Example {
-/// #[serde(serialize_with = "crate::serde::vec_serde::serialize")]
-/// tags: Vec<String>,
+///     #[serde(serialize_with = "wheel_rs::serde::vec_serde::serialize")]
+///     tags: Vec<String>,
 /// }
 /// ```
 pub fn serialize<S>(vec: &Vec<String>, serializer: S) -> Result<S::Ok, S::Error>
@@ -39,27 +40,37 @@ where
 /// # 将 JSON 数据反序列化为 `Vec<String>` 类型
 ///
 /// ## 支持的格式
-/// - `"string"` -> `vec!["string"]`
-/// - `["string1", "string2"]` -> `vec!["string1", "string2"]`
-/// - `null` -> `vec![]`
+/// - `["string1", "string2"]` -> `vec!["string1", "string2"]`（数组）
+/// - `"a,b,c"` -> `vec!["a", "b", "c"]`（逗号分隔字符串，各项会 trim）
+/// - `"single"` -> `vec!["single"]`（无逗号的字符串按单元素处理）
+///
+/// 数组元素与逗号分隔项中的**空字符串会被过滤掉**。
+///
+/// ## 不支持
+///
+/// `null` **不会**被转换为空数组，而是返回类型错误（`invalid type: null`）。
+/// 若字段可能缺省，请改用 [`crate::serde::vec_option_serde`]。
 ///
 /// ## 示例
-/// ```rust
-/// use serde::{Serialize, Deserialize};
-/// use serde_json;
-/// 
+/// ```
+/// use serde::{Deserialize, Serialize};
+///
 /// #[derive(Serialize, Deserialize)]
 /// struct Example {
 ///     #[serde(
-///         serialize_with = "crate::serde::vec_serde::serialize",
-///         deserialize_with = "crate::serde::vec_serde::deserialize"
+///         serialize_with = "wheel_rs::serde::vec_serde::serialize",
+///         deserialize_with = "wheel_rs::serde::vec_serde::deserialize"
 ///     )]
 ///     tags: Vec<String>,
 /// }
-/// 
-/// let json = r#'{"tags": ["tag1", "tag2"]}'#;
-/// let example: Example = serde_json::from_str(json).unwrap();
+///
+/// // 数组形式
+/// let example: Example = serde_json::from_str(r#"{"tags": ["tag1", "tag2"]}"#).unwrap();
 /// assert_eq!(example.tags, vec!["tag1", "tag2"]);
+///
+/// // 逗号分隔字符串形式
+/// let example: Example = serde_json::from_str(r#"{"tags": "a, b ,c"}"#).unwrap();
+/// assert_eq!(example.tags, vec!["a", "b", "c"]);
 /// ```
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
 where

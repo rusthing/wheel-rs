@@ -28,14 +28,21 @@ use std::time::Duration;
 ///
 /// ## 示例
 ///
+/// 必须通过 `#[serde(with = "...")]` 标注字段才会生效；直接序列化裸 `Duration`
+/// 走的是 serde 默认实现（输出 `{"secs":..,"nanos":..}`），不会经过本模块。
+///
 /// ```
-/// use wheel_rs::serde::duration_serde;
-/// use serde_json;
+/// use serde::{Deserialize, Serialize};
 /// use std::time::Duration;
 ///
-/// let duration = Duration::from_secs(5);
-/// let serialized = serde_json::to_string(&duration).unwrap();
-/// assert_eq!(serialized, "\"5s\"");
+/// #[derive(Serialize, Deserialize)]
+/// struct Config {
+///     #[serde(with = "wheel_rs::serde::duration_serde")]
+///     timeout: Duration,
+/// }
+///
+/// let cfg = Config { timeout: Duration::from_secs(5) };
+/// assert_eq!(serde_json::to_string(&cfg).unwrap(), r#"{"timeout":"5s"}"#);
 /// ```
 pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
 where
@@ -52,13 +59,21 @@ where
 /// ## 示例
 ///
 /// ```
-/// use wheel_rs::serde::duration_serde;
-/// use serde_json;
+/// use serde::{Deserialize, Serialize};
 /// use std::time::Duration;
 ///
-/// let json = "\"5s\"";
-/// let deserialized: Duration = serde_json::from_str(json).unwrap();
-/// assert_eq!(deserialized, Duration::from_secs(5));
+/// #[derive(Serialize, Deserialize)]
+/// struct Config {
+///     #[serde(with = "wheel_rs::serde::duration_serde")]
+///     timeout: Duration,
+/// }
+///
+/// let cfg: Config = serde_json::from_str(r#"{"timeout":"5s"}"#).unwrap();
+/// assert_eq!(cfg.timeout, Duration::from_secs(5));
+///
+/// // humantime 支持的写法均可解析
+/// let cfg: Config = serde_json::from_str(r#"{"timeout":"3m"}"#).unwrap();
+/// assert_eq!(cfg.timeout, Duration::from_secs(180));
 /// ```
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
 where

@@ -15,13 +15,13 @@
 //!
 //! ## 示例
 //!
-//! ```rust
+//! ```
 //! use serde::{Deserialize, Serialize};
 //! use log::LevelFilter;
 //!
 //! #[derive(Serialize, Deserialize)]
 //! struct Config {
-//!     #[serde(with = "wheel_rs::serde::log_filter")]
+//!     #[serde(with = "wheel_rs::serde::log_filter_serde")]
 //!     log_level: LevelFilter,
 //! }
 //! ```

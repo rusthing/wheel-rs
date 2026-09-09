@@ -16,14 +16,14 @@ use std::path::PathBuf;
 /// - `Some(PathBuf::from("/path/to/file"))` -> `"/path/to/file"`
 ///
 /// ## 示例
-/// ```rust
+/// ```
 /// use serde::Serialize;
 /// use std::path::PathBuf;
 ///
 /// #[derive(Serialize)]
 /// struct Example {
-/// #[serde(serialize_with = "crate::serde::path_buf_option_serde::serialize")]
-/// path: Option<PathBuf>,
+///     #[serde(serialize_with = "wheel_rs::serde::path_buf_option_serde::serialize")]
+///     path: Option<PathBuf>,
 /// }
 /// ```
 pub fn serialize<S>(path: &Option<PathBuf>, serializer: S) -> Result<S::Ok, S::Error>
@@ -43,23 +43,25 @@ where
 /// - `"path/to/file"` -> `Some(PathBuf::from("path/to/file"))`
 ///
 /// ## 示例
-/// ```rust
-/// use serde::{Serialize, Deserialize};
-/// use serde_json;
+/// ```
+/// use serde::{Deserialize, Serialize};
 /// use std::path::PathBuf;
 ///
 /// #[derive(Serialize, Deserialize)]
 /// struct Example {
-/// #[serde(
-/// serialize_with = "crate::serde::path_buf_option_serde::serialize",
-/// deserialize_with = "crate::serde::path_buf_option_serde::deserialize"
-/// )]
-/// path: Option<PathBuf>,
+///     #[serde(
+///         serialize_with = "wheel_rs::serde::path_buf_option_serde::serialize",
+///         deserialize_with = "wheel_rs::serde::path_buf_option_serde::deserialize"
+///     )]
+///     path: Option<PathBuf>,
 /// }
 ///
-/// let json = r#"{"path": "/home/user/file.txt"}"#;
-/// let example: Example = serde_json::from_str(json).unwrap();
+/// let example: Example = serde_json::from_str(r#"{"path": "/home/user/file.txt"}"#).unwrap();
 /// assert_eq!(example.path, Some(PathBuf::from("/home/user/file.txt")));
+///
+/// // null 反序列化为 None
+/// let example: Example = serde_json::from_str(r#"{"path": null}"#).unwrap();
+/// assert_eq!(example.path, None);
 /// ```
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
 where
