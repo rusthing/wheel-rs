@@ -1,5 +1,12 @@
+//! # 字符串工具模块
+//!
+//! 提供字符串格式转换工具：驼峰命名拆分、`snake_case` 转 `PascalCase` 等。
+
 use thiserror::Error;
 
+/// # 字符串解析错误
+///
+/// 字符串格式转换过程中可能出现的错误。
 #[derive(Error, Debug)]
 pub enum StrError {
     #[error("String cannot be empty")]
@@ -18,7 +25,33 @@ pub enum CamelFormat {
     Lower,
 }
 
-/// # 将驼峰格式的字符串分割成数组
+/// # 将驼峰格式的字符串分割成单词数组
+///
+/// 按大写字母边界将驼峰字符串拆分为单词，支持处理连续大写字母（缩写）场景。
+/// 例如 `"parseXML"` 拆分为 `["parse", "XML"]`，`"helloWorld"` 拆分为 `["hello", "World"]`。
+///
+/// ## 参数
+///
+/// * `s` - 待拆分的驼峰格式字符串
+/// * `format` - 驼峰格式类型（[`CamelFormat::Upper`] 大驼峰 / [`CamelFormat::Lower`] 小驼峰）
+///
+/// ## 返回值
+///
+/// 拆分成功返回单词数组；单词由连续的字母或数字组成。
+///
+/// ## 错误
+///
+/// * 输入为空字符串时返回 [`StrError::Empty`]
+/// * 首字符与 `format` 要求的大小写不符、或包含非字母数字字符时返回 [`StrError::InvalidFormat`]
+///
+/// ## 示例
+///
+/// ```
+/// use wheel_rs::str_utils::{split_camel_case, CamelFormat};
+///
+/// let words = split_camel_case("helloWorld", CamelFormat::Lower).unwrap();
+/// assert_eq!(words, vec!["hello", "World"]);
+/// ```
 pub fn split_camel_case(s: &str, format: CamelFormat) -> Result<Vec<String>, StrError> {
     if s.is_empty() {
         return Err(StrError::Empty);

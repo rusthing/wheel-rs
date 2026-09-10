@@ -12,10 +12,16 @@
 //!
 //! ## 模块说明
 //!
+//! - [addr_utils]: 网络地址（主机 + 端口）解析与表示工具
 //! - [file_utils]: 文件操作工具函数
 //! - [time_utils]: 时间相关工具函数
 //! - [dns_utils]: DNS 解析工具函数
+//! - [config_utils]: 配置差异比较工具
+//! - [ipnet_utils]: IP 网络比较与精确性判断工具
+//! - [str_utils]: 字符串格式转换工具
+//! - [urn_utils]: URN 解析与表示工具
 //! - [cmd]: 命令行执行工具
+//! - [process]: 进程管理工具
 //! - [serde]: 自定义序列化/反序列化实现
 
 pub mod addr_utils;

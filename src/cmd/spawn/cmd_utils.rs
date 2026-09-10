@@ -35,14 +35,15 @@ use tokio::sync::oneshot;
 ///
 /// ## 示例
 ///
-/// ```rust
+/// ```no_run
 /// use wheel_rs::cmd::spawn::cmd_utils::execute;
-/// use tokio::sync::broadcast;
-/// use std::sync::mpsc;
+/// use tokio::sync::{broadcast, oneshot};
 ///
+/// # async fn demo() {
 /// let (data_sender, _) = broadcast::channel(100);
-/// let (process_exit_sender, _) = mpsc::channel();
-/// let child = execute("ls", &["-l"], data_sender, process_exit_sender, None);
+/// let (process_exit_sender, _rx) = oneshot::channel();
+/// let child = execute("ls", &["-l"], data_sender, process_exit_sender, 1024).unwrap();
+/// # }
 /// ```
 pub fn execute(
     cmd: &str,

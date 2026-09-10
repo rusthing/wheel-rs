@@ -1,3 +1,8 @@
+//! # 自定义序列化/反序列化器，用于处理 `Option<u64>` 类型的数据
+//!
+//! 此模块提供 `Option<u64>` 类型的自定义序列化和反序列化实现。
+//! 序列化时数字转为字符串，反序列化时兼容字符串、数字和 null 三种输入格式。
+
 use serde::{Deserializer, Serialize, Serializer};
 
 /// # Option<u64> 序列化为字符串或 null

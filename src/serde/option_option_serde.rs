@@ -1,3 +1,9 @@
+//! # 自定义序列化/反序列化器，用于处理 `Option<Option<T>>` 类型的数据
+//!
+//! 此模块提供 `Option<Option<T>>` 类型的自定义序列化和反序列化实现，
+//! 用于区分"字段不存在"（外层 `None`）与"字段存在但值为空"（`Some(None)`）两种情况，
+//! 常配合 `#[serde(default, skip_serializing_if = "Option::is_none")]` 使用。
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// # 将 `Option<Option<T>>` 序列化

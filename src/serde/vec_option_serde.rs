@@ -18,10 +18,15 @@ use std::fmt;
 /// - `Some(vec!["string1", "string2"])` -> `["string1", "string2"]`
 ///
 /// ## 示例
-/// ```
+/// ```rust
 /// use serde::Serialize;
+///
 /// #[derive(Serialize)]
 /// struct Example {
+///     #[serde(serialize_with = "wheel_rs::serde::vec_option_serde::serialize")]
+///     tags: Option<Vec<String>>,
+/// }
+/// ```
 pub fn serialize<S>(level: &Option<Vec<String>>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -45,7 +50,7 @@ where
 /// use serde::Deserialize;
 /// #[derive(Deserialize)]
 /// struct Example {
-///     #[serde(deserialize_with = "crate::serde::vec_option_serde::deserialize")]
+///     #[serde(deserialize_with = "wheel_rs::serde::vec_option_serde::deserialize")]
 ///     tags: Option<Vec<String>>,
 /// }
 /// ```

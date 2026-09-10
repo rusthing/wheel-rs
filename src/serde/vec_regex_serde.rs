@@ -1,4 +1,8 @@
-// /Users/zbz/workspace/rusthing/wheel-rs/src/serde/vec_regex_serde.rs
+//! # 自定义序列化/反序列化器，用于处理 `Vec<Regex>` 类型的数据
+//!
+//! 此模块提供 `Vec<Regex>` 类型的自定义序列化和反序列化实现，
+//! 支持将单个正则表达式字符串或字符串数组转换为正则向量。
+
 use regex::Regex;
 use serde::{
     de::{self, Deserializer, SeqAccess, Visitor},
@@ -6,6 +10,16 @@ use serde::{
 };
 use std::fmt;
 
+/// # 将 `Vec<Regex>` 序列化为字符串数组
+///
+/// 将正则表达式向量中的每个元素以原始字符串形式序列化为 JSON 数组。
+///
+/// ## 参数
+/// - `vec`: 待序列化的正则向量。
+/// - `serializer`: 序列化器。
+///
+/// ## 返回值
+/// 返回序列化结果，序列化失败时返回 `S::Error`。
 pub fn serialize<S>(vec: &Vec<Regex>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -17,6 +31,17 @@ where
     seq.end()
 }
 
+/// # 将字符串或字符串数组反序列化为 `Vec<Regex>`
+///
+/// 支持的输入格式：
+/// - 单个字符串 `"^foo"` → 单元素正则向量
+/// - 字符串数组 `["^foo", "bar$"]` → 对应正则向量
+///
+/// ## 参数
+/// - `deserializer`: 反序列化器。
+///
+/// ## 返回值
+/// 返回反序列化后的正则向量；存在无效的正则表达式时返回 `D::Error`。
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Regex>, D::Error>
 where
     D: Deserializer<'de>,

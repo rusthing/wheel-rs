@@ -33,10 +33,10 @@ impl Drop for PidFileGuard {
 impl PidFileGuard {
     /// # 创建新的 PID 文件守卫实例
     ///
-    /// 构造一个新的 `PidFileGuard` 实例，并创建对应的 PID 文件。
+    /// 构造一个新的 `PidFileGuard` 实例，并创建对应的 PID 文件（写入当前进程的 PID）。
     ///
     /// ## 参数
-    /// - `app_file_path`: 应用程序文件的基础路径，用于生成 `.pid` 文件路径。
+    /// - `pid_file_path`: 用于写入当前进程 PID 的 PID 文件路径。
     ///
     /// ## 返回值
     /// - 成功时返回 `Ok(PidFileGuard)` 实例。
@@ -45,10 +45,9 @@ impl PidFileGuard {
     /// ## 示例
     /// ```rust
     /// use std::path::PathBuf;
-    /// use crate::process::pid::PidFileGuard;
+    /// use wheel_rs::process::PidFileGuard;
     ///
-    /// let app_path = PathBuf::from("/tmp/my_app");
-    /// let guard = PidFileGuard::new(&app_path);
+    /// let guard = PidFileGuard::new(PathBuf::from("/tmp/my_app.pid")).unwrap();
     /// ```
     pub fn new(pid_file_path: PathBuf) -> Result<Self, PidError> {
         // 写入当前进程的 PID 到文件中

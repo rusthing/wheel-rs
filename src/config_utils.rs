@@ -1,3 +1,7 @@
+//! # 配置工具模块
+//!
+//! 提供 `config` 配置对象的差异比较与变化判断工具。
+
 use config::{Config, Map, Value, ValueKind};
 
 /// 比较两个 `Config` 值，使用库自带的 `Value` 树进行递归比较。
@@ -75,6 +79,18 @@ fn diff_table(
     }
 }
 
+/// # 判断配置是否发生变化
+///
+/// 检查 [`diff_config`] 返回的差异 Map 中是否存在以给定前缀开头的 key。
+///
+/// ## 参数
+///
+/// * `key_prefix` - 要匹配的全路径 key 前缀（如 "a.b"）
+/// * `changed` - [`diff_config`] 返回的差异 Map
+///
+/// ## 返回值
+///
+/// 若存在以 `key_prefix` 开头的 key 则返回 `true`，否则返回 `false`。
 pub fn has_config_changed(key_prefix: &str, changed: &Map<String, Value>) -> bool {
     changed.keys().any(|key| key.starts_with(key_prefix))
 }

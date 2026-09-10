@@ -18,6 +18,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 
 /// # HTTP 方法解析错误
+///
+/// 当方法字符串无法解析为有效的 HTTP 方法时返回，包含具体的失败信息。
 #[derive(Debug, Error)]
 pub enum MethodError {
     /// 方法字符串不在受支持的范围内（GET/POST/PUT/DELETE/OPTIONS/HEAD/PATCH）
@@ -86,6 +88,21 @@ impl std::fmt::Display for Method {
 impl Method {
     /// # 从字符串解析 HTTP 方法
     ///
+    /// 将方法字符串（忽略大小写）解析为对应的 [`Method`] 变体。
+    ///
+    /// ## 参数
+    ///
+    /// * `method` - HTTP 方法字符串，如 `"GET"`、`"post"`
+    ///
+    /// ## 返回值
+    ///
+    /// 解析成功返回对应的 [`Method`] 变体。
+    ///
+    /// ## 错误
+    ///
+    /// 无法识别的方法字符串返回 [`MethodError::Parse`]。
+    /// # 从字符串解析 HTTP 方法
+    ///
     /// 大小写不敏感，受支持的方法为 GET、POST、PUT、DELETE、OPTIONS、HEAD、PATCH。
     ///
     /// ## 返回值
@@ -117,6 +134,9 @@ impl Method {
 }
 
 /// # URN 解析错误
+///
+/// 当 URN 字符串无法解析、URL 部分为空，或其中包含无效的 HTTP 方法时返回。
+/// 其中方法解析错误由 [`MethodError`] 自动转换而来。
 #[derive(Debug, Error)]
 pub enum UrnError {
     /// URN 字符串格式非法，例如 URL 部分为空
@@ -171,6 +191,22 @@ impl std::fmt::Display for Urn {
 }
 
 impl Urn {
+    /// # 创建新的 URN 实例
+    ///
+    /// 直接以可选方法字符串和 URL 构造 [`Urn`]。
+    ///
+    /// ## 参数
+    ///
+    /// * `method` - 可选的 HTTP 方法字符串，为 `None` 时表示不指定方法
+    /// * `url` - 资源 URL 字符串
+    ///
+    /// ## 返回值
+    ///
+    /// 返回包含解析后方法（`Option<Method>`）与 URL 的 [`Urn`] 实例。
+    ///
+    /// ## 错误
+    ///
+    /// 当 `method` 不是有效的 HTTP 方法时返回 [`UrnError::InvalidMethod`]。
     /// # 由方法与 URL 直接构造 URN
     ///
     /// 与 [`Urn::from_str`] 不同，此函数不做字符串解析，而是分别接收方法与 URL。
@@ -212,15 +248,18 @@ impl Urn {
     ///
     /// ## 参数
     ///
-    /// * `urn` - 待解析的 URN 字符串，方法与 URL 两侧空白会被 trim
+    /// * `urn` - 表示 URN 的字符串，支持两种格式：
+    ///   - 显式方法格式：`METHOD:URL`，例如 `GET:example.com`
+    ///   - HTTP 前缀格式：`http:URL` 或 `https:URL`，会自动设置方法为 GET
     ///
     /// ## 返回值
     ///
-    /// * `Ok(Urn)` - 解析成功
-    /// * `Err(UrnError::Parse)` - URL 部分为空，例如 `"PUT:"`
-    /// * `Err(UrnError::InvalidMethod)` - 方法不是受支持的 HTTP 方法
+    /// 解析成功返回 [`Urn`] 实例。
     ///
-    /// 解析失败一律返回 `Err`，**不会 panic**。
+    /// ## 错误
+    ///
+    /// * URL 部分为空时返回 [`UrnError::Parse`]
+    /// * 方法部分不是有效的 HTTP 方法时返回 [`UrnError::InvalidMethod`]
     ///
     /// ## 示例
     ///

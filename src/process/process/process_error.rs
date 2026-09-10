@@ -19,12 +19,16 @@ pub enum ProcessError {
     ///
     /// ## 示例
     /// ```rust
-    /// use crate::process::ProcessError;
-    /// let error = ProcessError::CheckProcessError("Permission denied".to_string());
+    /// use wheel_rs::process::ProcessError;
+    /// let error = ProcessError::CheckProcess("Permission denied".to_string());
     /// ```
     #[error("Fail to check process: {0}")]
     CheckProcess(String),
 
+    /// 信号发送失败错误
+    ///
+    /// 当发送系统信号失败（如目标进程不存在或权限不足）时触发此错误，
+    /// 由 [`SignalError`] 通过 `From` 自动转换而来。
     #[error("{0}")]
     Signal(#[from] SignalError),
 
@@ -38,8 +42,8 @@ pub enum ProcessError {
     ///
     /// ## 示例
     /// ```rust
-    /// use crate::process::ProcessError;
-    /// let error = ProcessError::ProcessExitWaitTimeout(1234);
+    /// use wheel_rs::process::ProcessError;
+    /// let error = ProcessError::TerminateProcessTimeout(1234);
     /// ```
     #[error("Process exit wait timeout: pid-{0}")]
     TerminateProcessTimeout(u32),

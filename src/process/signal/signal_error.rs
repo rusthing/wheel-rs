@@ -19,8 +19,8 @@ pub enum SignalError {
     ///
     /// ## 示例
     /// ```rust
-    /// use crate::signal::SignalError;
-    /// let error = SignalError::InvalidInstructionError("unknown_signal".to_string());
+    /// use wheel_rs::process::SignalError;
+    /// let error = SignalError::InvalidInstruction("unknown_signal".to_string());
     /// ```
     #[error("Invalid instruction: {0}")]
     InvalidInstruction(String),
@@ -34,8 +34,8 @@ pub enum SignalError {
     ///
     /// ## 示例
     /// ```rust
-    /// use crate::signal::SignalError;
-    /// let error = SignalError::SendSignalError("Permission denied".to_string());
+    /// use wheel_rs::process::SignalError;
+    /// let error = SignalError::SendSignal("Permission denied".to_string());
     /// ```
     #[error("Fail to send signal: {0}")]
     SendSignal(String),
@@ -49,8 +49,8 @@ pub enum SignalError {
     ///
     /// ## 示例
     /// ```rust
-    /// use crate::signal::SignalError;
-    /// let error = SignalError::RegisterSignalHandlerError("SIGHUP".to_string());
+    /// use wheel_rs::process::SignalError;
+    /// let error = SignalError::RegisterSignalHandler("SIGHUP".to_string());
     /// ```
     #[error("Fail to register signal handler: {0}")]
     RegisterSignalHandler(String),

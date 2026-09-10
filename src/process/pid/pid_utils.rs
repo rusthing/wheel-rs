@@ -10,6 +10,13 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 use std::process;
 
+/// # 获取当前进程 ID
+///
+/// 返回当前进程的操作系统进程 ID（PID）。
+///
+/// ## 返回值
+///
+/// 当前进程的 PID，类型为 `u32`。
 pub fn get_current_pid() -> u32 {
     process::id()
 }
@@ -31,7 +38,7 @@ pub fn get_current_pid() -> u32 {
 ///
 /// ```
 /// use std::path::PathBuf;
-/// use wheel_rs::process::pid_utils::get_pid_file_path;
+/// use wheel_rs::process::get_pid_file_path;
 ///
 /// let app_path = PathBuf::from("/var/run/myapp");
 /// let pid_path = get_pid_file_path(&app_path);
@@ -45,22 +52,21 @@ pub fn get_pid_file_path(app_file_path: &PathBuf) -> PathBuf {
 
 /// # 读取PID文件中的进程ID
 ///
-/// 从指定路径的PID文件中读取保存的进程ID。如果文件不存在、无法打开或内容格式错误，
-/// 则返回 `Ok(None)`。若发生其他I/O错误，则返回相应的 `PidError`。
+/// 从指定路径的PID文件中读取保存的进程ID。
 ///
 /// ## 参数
 /// - `pid_file_path`: PID文件的路径。
 ///
 /// ## 返回值
 /// - `Ok(Some(pid))`: 成功读取到PID。
-/// - `Ok(None)`: 文件不存在或内容无效。
-/// - `Err(PidError)`: 发生I/O错误或其他异常。
+/// - `Ok(None)`: 文件不存在。
+/// - `Err(PidError)`: 打开、读取或解析文件内容失败。
 ///
-/// ## 错误类型
-/// - `InvalidPidFilePath`: 路径无效。
-/// - `OpenPidFileError`: 无法打开文件。
-/// - `ReadPidFileError`: 读取文件失败。
-/// - `ParsePidFileContentError`: 解析PID内容失败。
+/// ## 错误
+/// - `InvalidPidFilePath`: 路径无法转换为字符串。
+/// - `OpenPidFile`: 无法打开文件。
+/// - `ReadPidFile`: 文件为空或读取失败。
+/// - `ParsePidFileContent`: PID内容无法解析为 `u32`。
 pub fn read_pid(pid_file_path: &PathBuf) -> Result<Option<u32>, PidError> {
     debug!("Reading PID from {pid_file_path:?}...");
 
@@ -105,10 +111,10 @@ pub fn read_pid(pid_file_path: &PathBuf) -> Result<Option<u32>, PidError> {
 /// - 确保调用者具有足够的文件系统权限。
 /// - 并发访问可能导致冲突，请谨慎使用。
 ///
-/// ## 错误类型
-/// - `InvalidPidFilePath`: 路径无效。
-/// - `CreatePidFileError`: 创建文件失败。
-/// - `WritePidFileError`: 写入文件失败。
+/// ## 错误
+/// - `InvalidPidFilePath`: 路径无法转换为字符串。
+/// - `CreatePidFile`: 创建文件失败。
+/// - `WritePidFile`: 写入文件失败。
 pub fn write_pid(pid_file_path: &PathBuf) -> Result<(), PidError> {
     let pid = get_current_pid();
     debug!("Writing PID {pid} to {pid_file_path:?}...");
@@ -130,18 +136,19 @@ pub fn write_pid(pid_file_path: &PathBuf) -> Result<(), PidError> {
 
 /// # 删除PID文件
 ///
-/// 删除指定路径的PID文件。如果文件不存在，则操作被视为成功。
+/// 删除指定路径的PID文件。注意：若文件不存在，`remove_file` 会返回错误，
+/// 该错误会被转换为 `PidError::DeletePidFile`。
 ///
 /// ## 参数
 /// - `pid_file_path`: PID文件的路径。
 ///
 /// ## 返回值
-/// - `Ok(())`: 成功删除文件或文件不存在。
-/// - `Err(PidError)`: 删除文件失败。
+/// - `Ok(())`: 成功删除文件。
+/// - `Err(PidError)`: 删除文件失败，包括文件不存在或权限不足等情况。
 ///
-/// ## 错误类型
-/// - `InvalidPidFilePath`: 路径无效。
-/// - `DeletePidFileError`: 删除文件失败。
+/// ## 错误
+/// - `InvalidPidFilePath`: 路径无法转换为字符串。
+/// - `DeletePidFile`: 删除文件失败，例如文件不存在或权限不足。
 pub fn delete_pid_file(pid_file_path: &PathBuf) -> Result<(), PidError> {
     info!("Deleting PID file: {pid_file_path:?} ...");
 
@@ -166,14 +173,14 @@ pub fn delete_pid_file(pid_file_path: &PathBuf) -> Result<(), PidError> {
 ///
 /// ## 返回值
 /// - `Ok(())`: 成功完成操作或无需删除。
-/// - `Err(PidError)`: 读取或删除文件失败。
+/// - `Err(PidError)`: PID匹配但删除文件失败。
 ///
 /// ## 注意事项
-/// - 此函数依赖于 `read_pid` 和 `delete_pid_file` 的正确实现。
+/// - 读取PID文件时发生的错误会被忽略（视为无需删除），不会传播。
 /// - 并发环境下可能存在竞态条件，请确保调用时机安全。
 ///
-/// ## 错误类型
-/// - 继承自 `read_pid` 和 `delete_pid_file` 的错误类型。
+/// ## 错误
+/// - `DeletePidFile`: 当前进程PID与文件内容匹配，但删除文件失败。
 pub fn delete_pid_file_if_my_process(pid_file_path: &PathBuf) -> Result<(), PidError> {
     // 读取PID文件中的PID，并检查是否与当前进程匹配
     if let Ok(Some(pid)) = read_pid(pid_file_path)

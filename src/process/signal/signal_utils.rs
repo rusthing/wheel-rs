@@ -37,8 +37,8 @@ use tokio::sync::broadcast::{Receiver, Sender};
 ///
 /// ## 错误处理
 ///
-/// 当指定的信号名称无效时，函数会返回 `InvalidInstructionError`。
-/// 若信号发送失败（如权限不足或进程不存在），则返回 `SendSignalError`。
+/// 当指定的信号名称无效时，函数会返回 `SignalError::InvalidInstruction`。
+/// 若信号发送失败（如权限不足或进程不存在），则返回 `SignalError::SendSignal`。
 pub fn send_signal_by_instruction(instruction: &str, pid: u32) -> Result<(), SignalError> {
     debug!("send signal by {instruction} instruction -> {pid}");
     let instruction = instruction.to_lowercase();
@@ -67,6 +67,11 @@ pub fn send_signal_by_instruction(instruction: &str, pid: u32) -> Result<(), Sig
 /// * `SIGINT` - 程序中断信号（如 Ctrl+C），记录日志并退出监听循环。
 /// * `SIGTERM` - 程序终止信号，记录日志并退出监听循环。
 /// * `SIGQUIT` - 程序退出信号，记录日志并退出监听循环。
+///
+/// ## 返回值
+///
+/// 返回一个 `tokio::sync::broadcast::Receiver`，调用方可通过 `recv()` 异步接收监听到的系统信号
+/// （类型为 `nix::sys::signal::Signal`）。
 ///
 /// ## 注意事项
 ///

@@ -1,3 +1,7 @@
+//! # IP 网络工具模块
+//!
+//! 提供 IP 网络（`ipnet::IpNet`）的比较排序与精确性判断工具。
+
 use ipnet::IpNet;
 use std::cmp::Ordering;
 use thiserror::Error;
@@ -8,7 +12,14 @@ pub enum IpnetError {
     NoLocalIp,
 }
 
-/// Compare two networks.
+/// # 比较两个网络
+///
+/// 精确匹配的网络（IPv4 前缀长度为 32 或 IPv6 前缀长度为 128）会排在非精确网络之前；
+/// 其余情况按 `IpNet` 的默认顺序（[`IpNet::cmp`]）比较。
+///
+/// ## 返回值
+///
+/// 返回 `a` 与 `b` 之间的 [`Ordering`]，用于排序场景。
 pub fn com_ip(a: &IpNet, b: &IpNet) -> Ordering {
     match (is_exact(a), is_exact(b)) {
         (true, false) => Ordering::Less,
@@ -17,7 +28,13 @@ pub fn com_ip(a: &IpNet, b: &IpNet) -> Ordering {
     }
 }
 
-/// Returns true if the network is exact.
+/// # 判断网络是否为精确地址
+///
+/// 判断网络是否精确到单个 IP 地址，即 IPv4 前缀长度为 32 或 IPv6 前缀长度为 128。
+///
+/// ## 返回值
+///
+/// 若网络为精确地址则返回 `true`，否则返回 `false`。
 pub fn is_exact(net: &IpNet) -> bool {
     match net {
         IpNet::V4(n) => n.prefix_len() == 32,

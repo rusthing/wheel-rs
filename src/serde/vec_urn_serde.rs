@@ -1,3 +1,8 @@
+//! # 自定义序列化/反序列化器，用于处理 `Vec<Urn>` 类型的数据
+//!
+//! 此模块提供 `Vec<Urn>` 类型的自定义序列化和反序列化实现，
+//! 支持将单个字符串、逗号分隔字符串或字符串数组转换为 URN 向量。
+
 use crate::urn_utils::Urn;
 use serde::{
     de::{self, Deserializer, SeqAccess, Visitor},
@@ -5,6 +10,16 @@ use serde::{
 };
 use std::fmt;
 
+/// # 将 `Vec<Urn>` 序列化为字符串数组
+///
+/// 将 URN 向量中的每个元素以字符串形式序列化为 JSON 数组。
+///
+/// ## 参数
+/// - `vec`: 待序列化的 URN 向量。
+/// - `serializer`: 序列化器。
+///
+/// ## 返回值
+/// 返回序列化结果，序列化失败时返回 `S::Error`。
 pub fn serialize<S>(vec: &Vec<Urn>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -16,6 +31,18 @@ where
     seq.end()
 }
 
+/// # 将字符串或字符串数组反序列化为 `Vec<Urn>`
+///
+/// 支持的输入格式：
+/// - 单个字符串 `"urn:example:foo"` → 单元素 URN 向量
+/// - 逗号分隔字符串 `"urn:example:foo,urn:example:bar"` → 对应 URN 向量
+/// - 字符串数组 `["urn:example:foo", "urn:example:bar"]` → 对应 URN 向量
+///
+/// ## 参数
+/// - `deserializer`: 反序列化器。
+///
+/// ## 返回值
+/// 返回反序列化后的 URN 向量；存在无法解析的 URN 元素时返回 `D::Error`。
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<Urn>, D::Error>
 where
     D: Deserializer<'de>,

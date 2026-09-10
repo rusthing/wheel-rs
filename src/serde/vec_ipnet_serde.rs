@@ -1,8 +1,23 @@
-// ... existing code ...
+//! # 自定义序列化/反序列化器，用于处理 `Vec<IpNet>` 类型的数据
+//!
+//! 此模块提供 `Vec<IpNet>` 类型的自定义序列化和反序列化实现。
+//! 序列化时将网段向量拼接为逗号分隔的字符串；
+//! 反序列化时支持单个网段字符串、逗号分隔字符串或字符串数组。
+
 use ipnet::IpNet;
 use serde::de::{self, Deserializer, SeqAccess, Visitor};
 use std::fmt;
 
+/// # 将 `Vec<IpNet>` 序列化为逗号分隔字符串
+///
+/// 将网段向量中的每个元素以字符串形式序列化，并以逗号拼接为一个字符串输出。
+///
+/// ## 参数
+/// - `vec`: 待序列化的网段向量。
+/// - `serializer`: 序列化器。
+///
+/// ## 返回值
+/// 返回序列化结果，序列化失败时返回 `S::Error`。
 pub fn serialize<S>(vec: &Vec<IpNet>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
@@ -20,17 +35,16 @@ where
 /// ## 支持的格式
 /// - `"192.168.1.0/24"` -> `vec![IpNet::from_str("192.168.1.0/24").unwrap()]`
 /// - `["192.168.1.0/24", "10.0.0.0/8"]` -> `vec![IpNet::from_str("192.168.1.0/24").unwrap(), IpNet::from_str("10.0.0.0/8").unwrap()]`
-/// - `null` -> `vec![]`
 ///
 /// ## 示例
 /// ```rust
-/// use serde::{Serialize, Deserialize};
-/// use serde_json;
+/// use ipnet::IpNet;
+/// use serde::Deserialize;
 ///
-/// #[derive(Serialize, Deserialize)]
+/// #[derive(Deserialize)]
 /// struct Example {
-/// #[serde(deserialize_with = "crate::serde::vec_serde::deserialize_ipnet_vec")]
-/// networks: Vec<IpNet>,
+///     #[serde(deserialize_with = "wheel_rs::serde::vec_ipnet_serde::deserialize")]
+///     networks: Vec<IpNet>,
 /// }
 /// ```
 pub fn deserialize<'de, D>(deserializer: D) -> Result<Vec<IpNet>, D::Error>

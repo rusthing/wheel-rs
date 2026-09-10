@@ -3,12 +3,25 @@
 //! 提供各种自定义序列化和反序列化实现。
 //!
 //! 该模块包含以下子模块：
+//! - [duration_option_option_serde] - 为 `Option<Option<Duration>>` 提供自定义序列化
 //! - [duration_option_serde] - 为 `Option<Duration>` 提供自定义序列化
 //! - [duration_serde] - 为 `Duration` 提供自定义序列化
-//! - [log_filter_serde] - 为 `Option<LevelFilter>` 提供自定义序列化
+//! - [log_filter_option_serde] - 为 `Option<LevelFilter>` 提供自定义序列化
+//! - [log_filter_serde] - 为 `LevelFilter` 提供自定义序列化
+//! - [option_option_serde] - 为 `Option<Option<T>>` 提供自定义序列化
+//! - [path_buf_option_serde] - 为 `Option<PathBuf>` 提供自定义序列化
+//! - [path_buf_serde] - 为 `PathBuf` 提供自定义序列化
+//! - [resolve_hosts_option_serde] - 为 `Option<ResolveHosts>` 提供自定义序列化
+//! - [resolve_hosts_serde] - 为 `ResolveHosts` 提供自定义序列化
+//! - [rotation_serde] - 为 `tracing_appender::rolling::Rotation` 提供自定义序列化
 //! - [u64_option_serde] - 为 `Option<u64>` 提供自定义序列化，支持字符串和数字格式
 //! - [u64_serde] - 为 `u64` 提供自定义序列化，支持字符串和数字格式
+//! - [vec_addr_serde] - 为 `Vec<Addr>` 提供自定义序列化
+//! - [vec_ipnet_serde] - 为 `Vec<IpNet>` 提供自定义序列化
 //! - [vec_option_serde] - 为 `Option<Vec<String>>` 提供自定义序列化
+//! - [vec_regex_serde] - 为 `Vec<Regex>` 提供自定义序列化
+//! - [vec_serde] - 为 `Vec<String>` 提供自定义序列化
+//! - [vec_urn_serde] - 为 `Vec<Urn>` 提供自定义序列化
 
 pub mod duration_option_option_serde;
 pub mod duration_option_serde;

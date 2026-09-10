@@ -26,17 +26,16 @@ use tokio::time::timeout;
 ///
 /// ## 错误处理
 ///
-/// 如果进程在 `wait_timeout` 时间内未退出，将返回 [ProcessExitWaitTimeout] 错误。
+/// 如果进程在 `wait_timeout` 时间内未退出，将返回 `ProcessError::TerminateProcessTimeout` 错误。
 ///
 /// ## 示例
 /// ```rust
 /// use std::time::Duration;
-/// use crate::process::terminate_process;
+/// use wheel_rs::process::terminate_process;
 ///
-/// #[tokio::main]
-/// async fn main() {
-/// let result = terminate_process(1234, Duration::from_secs(10), Duration::from_secs(1)).await;
-/// assert!(result.is_ok());
+/// async fn example() {
+///     // 终止 PID 为 1234 的进程；进程不存在或等待超时都会返回错误
+///     let _ = terminate_process(1234, Duration::from_secs(10), Duration::from_secs(1)).await;
 /// }
 /// ```
 pub async fn terminate_process(
@@ -93,17 +92,17 @@ async fn wait_for_process_exit(
 ///
 /// * `Ok(true)` - 进程存在。
 /// * `Ok(false)` - 进程不存在。
-/// * `Err(CheckProcessError)` - 检查过程中发生错误。
+/// * `Err(CheckProcess)` - 检查过程中发生其他系统错误。
 ///
 /// ## 安全性说明
 ///
 /// 此函数使用 `unsafe` 块调用系统级API（`libc::kill`），但已被妥善封装以确保内存安全。
 /// 调用者无需担心未定义行为或内存泄漏问题。
 ///
-/// ## 错误类型
-/// - `ESRCH`: 进程不存在。
-/// - `EPERM`: 进程存在但无权限访问。
-/// - 其他错误: 返回具体错误信息。
+/// ## 错误
+/// - `ESRCH`: 进程不存在，映射为 `Ok(false)`，不视为错误。
+/// - `EPERM`: 进程存在但无权限访问，映射为 `Ok(true)`，不视为错误。
+/// - 其他系统错误: 返回 `Err(ProcessError::CheckProcess)`。
 pub fn check_process(pid: u32) -> Result<bool, ProcessError> {
     unsafe {
         let result = libc::kill(pid as pid_t, 0); // 信号 0

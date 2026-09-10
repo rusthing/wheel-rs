@@ -17,7 +17,7 @@ use std::fmt;
 /// - `vec!["string1", "string2"]` -> `["string1", "string2"]`
 ///
 /// ## 示例
-/// ```
+/// ```rust
 /// use serde::Serialize;
 ///
 /// #[derive(Serialize)]
@@ -52,9 +52,10 @@ where
 /// 若字段可能缺省，请改用 [`crate::serde::vec_option_serde`]。
 ///
 /// ## 示例
-/// ```
-/// use serde::{Deserialize, Serialize};
-///
+/// ```rust
+/// use serde::{Serialize, Deserialize};
+/// use serde_json;
+/// 
 /// #[derive(Serialize, Deserialize)]
 /// struct Example {
 ///     #[serde(
