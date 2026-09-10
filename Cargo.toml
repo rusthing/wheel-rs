@@ -1,6 +1,6 @@
 [package]
 name = "wheel-rs"
-version = "1.11.1"
+version = "1.11.2"
 edition = "2024"
 authors = ["zbz"]
 keywords = ["tools", "utils"]
@@ -23,14 +23,14 @@ notify = "8.2.0"
 humantime = "2.4.0"
 sha2 = "0.11.0"
 hex = "0.4.3"
-dns-lookup = "3.0.1"
+dns-lookup = "4.0.1"
 tokio = { version = "1.53.1", features = ["macros", "signal", "process", "io-util", "sync", "rt", "time"] }
 bytes = "1.12.1"
 nix = { version = "0.31.3", features = ["signal", "net"] }
 libc = "1.0.0-alpha.4"
-ipnet = "2.12.1"
+ipnet = "2.12.2"
 regex = "1.13.1"
-hickory-resolver = "0.26.1"
+hickory-resolver = "0.26.2"
 
 # 仅用于文档测试（doctest）中的序列化示例，不会进入发布产物，
 # 也不会成为下游使用方的依赖。serde_json 本就在 Cargo.lock 中（间接依赖）。
