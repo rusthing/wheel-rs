@@ -3,6 +3,7 @@
 //! 提供时间相关的实用工具函数。
 
 use chrono::Utc;
+use std::time::Duration;
 
 /// 获取当前 Unix 时间戳（秒）。
 ///
@@ -53,4 +54,18 @@ pub fn now_ms() -> u64 {
 /// ```
 pub fn now_ns() -> u64 {
     Utc::now().timestamp_nanos_opt().unwrap() as u64
+}
+
+/// 将 `Duration` 转为人类可读的字符串（如 `"5s"`、`"10m"`、`"1h 30m"`）。
+///
+/// 使用 `humantime` 格式化，适用于存入数据库或日志展示。
+pub fn duration_to_string(d: Duration) -> String {
+    humantime::format_duration(d).to_string()
+}
+
+/// 将人类可读的时长字符串（如 `"5s"`、`"10m"`）解析为 `Duration`。
+///
+/// 解析失败时返回零时长。
+pub fn string_to_duration(s: String) -> Duration {
+    humantime::parse_duration(&s).unwrap_or_default()
 }
