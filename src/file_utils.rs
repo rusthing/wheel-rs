@@ -11,8 +11,7 @@
 //! ```
 //! use wheel_rs::file_utils::get_file_ext;
 //!
-//! assert_eq!(get_file_ext("example.TXT").as_deref(), Some("txt"));
-//! // 获取文件扩展名
+//! // 获取文件扩展名（始终返回 Some；无扩展名时为整个文件名的 lowercase）
 //! let ext = get_file_ext("example.TXT").unwrap();
 //! assert_eq!(ext, "txt");
 //!
@@ -87,29 +86,21 @@ pub fn get_file_ext(file_name: &str) -> Option<String> {
 ///
 /// ## 返回值
 ///
-/// * `Ok(String)` - 文件 SHA256 哈希值的小写十六进制字符串（64 个字符）。
-/// * `Err(io::Error)` - 文件无法打开或读取过程中出错，**不会 panic**。
-/// 返回表示文件 SHA256 哈希值的小写十六进制字符串。
-///
-/// ## 错误
-///
-/// 当无法打开文件或读取过程中发生错误时返回 [`io::Error`]。
+/// * `Ok(String)` - 文件 SHA256 哈希值的小写十六进制字符串（64 个字符）
+/// * `Err(io::Error)` - 文件无法打开或读取过程中出错，**不会 panic**
 ///
 /// ## 示例
 ///
-/// ```rust
+/// ```
 /// use std::path::Path;
 /// use wheel_rs::file_utils::calc_hash_of_file;
 ///
-/// // 需要替换为真实存在的文件路径；文件不存在时返回 Err 而非 panic
-/// let hash = calc_hash_of_file(Path::new("test.txt"))?;
-/// println!("文件哈希值: {hash}");
-/// # Ok::<(), std::io::Error>(())
-/// // 假设存在一个名为 "test.txt" 的文件
+/// // 假设存在一个名为 "test.txt" 的文件；文件不存在时返回 Err 而非 panic
 /// if let Ok(hash) = calc_hash_of_file(Path::new("test.txt")) {
 ///     println!("文件哈希值: {}", hash);
 /// }
-/// ```
+///```
+
 pub fn calc_hash_of_file(path: &Path) -> Result<String, io::Error> {
     let mut file = File::open(path)?;
     let mut hasher = sha2::Sha256::new();
