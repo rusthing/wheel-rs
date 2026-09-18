@@ -4,6 +4,7 @@
 
 use chrono::Utc;
 use std::time::Duration;
+use tokio::time::{interval, MissedTickBehavior};
 
 /// 获取当前 Unix 时间戳（秒）。
 ///
@@ -68,4 +69,10 @@ pub fn duration_to_string(d: Duration) -> String {
 /// 解析失败时返回零时长。
 pub fn string_to_duration(s: String) -> Duration {
     humantime::parse_duration(&s).unwrap_or_default()
+}
+
+pub fn build_ticker(period: Duration) -> tokio::time::Interval {
+    let mut ticker = interval(period);
+    ticker.set_missed_tick_behavior(MissedTickBehavior::Skip); // 忽略错过的时间点
+    ticker
 }
