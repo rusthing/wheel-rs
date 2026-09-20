@@ -1,7 +1,7 @@
 //! # 自定义序列化/反序列化器，用于处理 `Option<PathBuf>` 类型的数据
 //!
 //! 此模块提供了一系列函数来处理可选路径缓冲区类型的序列化和反序列化，
-//! 支持将字符串转换为 Option<PathBuf>，以及将 Option<PathBuf> 序列化为适当的 JSON 格式。
+//! 支持将字符串转换为 `Option<PathBuf>`，以及将 `Option<PathBuf>` 序列化为适当的 JSON 格式。
 //!
 
 use crate::serde::path_buf_serde::PathBufVisitor;

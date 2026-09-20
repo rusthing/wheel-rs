@@ -88,22 +88,11 @@ impl std::fmt::Display for Method {
 impl Method {
     /// # 从字符串解析 HTTP 方法
     ///
-    /// 将方法字符串（忽略大小写）解析为对应的 [`Method`] 变体。
+    /// 大小写不敏感，受支持的方法为 GET、POST、PUT、DELETE、OPTIONS、HEAD、PATCH。
     ///
     /// ## 参数
     ///
     /// * `method` - HTTP 方法字符串，如 `"GET"`、`"post"`
-    ///
-    /// ## 返回值
-    ///
-    /// 解析成功返回对应的 [`Method`] 变体。
-    ///
-    /// ## 错误
-    ///
-    /// 无法识别的方法字符串返回 [`MethodError::Parse`]。
-    /// # 从字符串解析 HTTP 方法
-    ///
-    /// 大小写不敏感，受支持的方法为 GET、POST、PUT、DELETE、OPTIONS、HEAD、PATCH。
     ///
     /// ## 返回值
     ///
@@ -191,22 +180,6 @@ impl std::fmt::Display for Urn {
 }
 
 impl Urn {
-    /// # 创建新的 URN 实例
-    ///
-    /// 直接以可选方法字符串和 URL 构造 [`Urn`]。
-    ///
-    /// ## 参数
-    ///
-    /// * `method` - 可选的 HTTP 方法字符串，为 `None` 时表示不指定方法
-    /// * `url` - 资源 URL 字符串
-    ///
-    /// ## 返回值
-    ///
-    /// 返回包含解析后方法（`Option<Method>`）与 URL 的 [`Urn`] 实例。
-    ///
-    /// ## 错误
-    ///
-    /// 当 `method` 不是有效的 HTTP 方法时返回 [`UrnError::InvalidMethod`]。
     /// # 由方法与 URL 直接构造 URN
     ///
     /// 与 [`Urn::from_str`] 不同，此函数不做字符串解析，而是分别接收方法与 URL。

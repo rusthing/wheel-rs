@@ -4,7 +4,9 @@
 
 use config::{Config, Map, Value, ValueKind};
 
-/// 比较两个 `Config` 值，使用库自带的 `Value` 树进行递归比较。
+/// # 比较两个 `Config` 值的差异
+///
+/// 使用库自带的 `Value` 树进行递归比较。
 /// 返回一个 Map，键为以 "." 分隔的全路径 key（如 "a.b.c"），值为新的 Value。
 /// 如果 Map 为空，表示两个配置完全相同。
 /// 被移除的 key 对应的值用 `ValueKind::Nil` 表示。

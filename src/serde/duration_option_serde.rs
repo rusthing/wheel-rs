@@ -20,9 +20,9 @@ use humantime::parse_duration;
 use serde::{Deserialize, Deserializer, Serializer};
 use std::time::Duration;
 
-/// # Duration序列化
+/// # Duration 序列化
 ///
-/// 将 Option<Duration> 序列化为字符串格式。Some(Duration) 会被转换为以秒为单位的字符串，
+/// 将 `Option<Duration>` 序列化为字符串格式。`Some(Duration)` 会被转换为以秒为单位的字符串，
 /// 格式为数字后跟 's' 字符（例如 "5s" 表示5秒）。None 值会被序列化为 null。
 ///
 /// ## 示例
@@ -57,9 +57,9 @@ where
     }
 }
 
-/// # Duration反序列化
+/// # Duration 反序列化
 ///
-/// 将字符串格式的时间间隔反序列化为 Option<Duration> 类型。
+/// 将字符串格式的时间间隔反序列化为 `Option<Duration>` 类型。
 /// 支持的格式包括 "5s"（5秒）、"3m"（3分钟）、"6h"（6小时）等。
 /// 如果输入为 None，则返回 None。
 ///

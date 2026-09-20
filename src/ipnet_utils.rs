@@ -6,8 +6,12 @@ use ipnet::IpNet;
 use std::cmp::Ordering;
 use thiserror::Error;
 
+/// # IP 网络工具错误类型
+///
+/// 定义 IP 网络工具模块中可能出现的错误。
 #[derive(Error, Debug)]
 pub enum IpnetError {
+    /// 未找到本地 IP 地址
     #[error("no local ip address found")]
     NoLocalIp,
 }

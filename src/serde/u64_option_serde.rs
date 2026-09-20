@@ -5,9 +5,9 @@
 
 use serde::{Deserializer, Serialize, Serializer};
 
-/// # Option<u64> 序列化为字符串或 null
+/// # `Option<u64>` 序列化为字符串或 null
 ///
-/// 将 Option<u64> 类型序列化为字符串格式或 null，便于 JSON 传输和存储
+/// 将 `Option<u64>` 类型序列化为字符串格式或 null，便于 JSON 传输和存储
 /// - Some(value) 序列化为字符串 "value"
 /// - None 序列化为 null
 pub fn serialize<S>(value: &Option<u64>, serializer: S) -> Result<S::Ok, S::Error>
@@ -20,9 +20,9 @@ where
     }
 }
 
-/// # 从字符串、数字或 null 反序列化为 Option<u64>
+/// # 从字符串、数字或 null 反序列化为 `Option<u64>`
 ///
-/// 支持从多种格式反序列化为 Option<u64> 类型
+/// 支持从多种格式反序列化为 `Option<u64>` 类型
 /// - 如果源数据是字符串，尝试解析为 u64，返回 Some(value)
 /// - 如果源数据是数字，直接转换为 u64，返回 Some(value)
 /// - 如果源数据是 null，返回 None

@@ -174,16 +174,6 @@ pub fn is_cross_device_error(err: &io::Error) -> bool {
 ///
 /// 持有期间持续监听文件变更；被 drop 时会自动 abort 两个后台任务，
 /// 因此**必须保持该值存活**，否则监听会立即停止。
-/// # 文件监视器
-///
-/// 监视一组文件的修改/删除事件，并在去抖时间窗口后转发最新事件。
-///
-/// 内部包含：
-/// - 底层文件监视器（`notify`）：负责收集文件系统事件
-/// - 去抖任务：事件发生后等待 `debounce_delay`，期间不断刷新，最终只转发最新事件
-/// - 回调任务（由 [`watch_file_changed`] 创建）：负责消费去抖后的事件并执行用户回调
-///
-/// `Drop` 时会中止内部去抖任务与回调任务。
 pub struct FileWatcher {
     _watcher: Box<dyn Watcher>,
     debounce_join_handle: tokio::task::JoinHandle<()>,
@@ -198,21 +188,6 @@ impl Drop for FileWatcher {
 }
 
 impl FileWatcher {
-    /// # 创建文件监视器
-    ///
-    /// 创建底层文件监视器并启动去抖任务。当任一被监视文件发生修改或删除事件时，
-    /// 事件会在 `debounce_delay` 去抖窗口结束后通过 `file_changed_tx` 发送。
-    ///
-    /// ## 参数
-    ///
-    /// * `files` - 要监视的文件路径列表
-    /// * `debounce_delay` - 去抖延迟时长，事件停止发生该时长后才转发最新事件
-    /// * `file_changed_tx` - 用于发送去抖后事件（[`notify::Event`]）的 `watch` 通道发送者
-    /// * `watch_join_handle` - 消费 `file_changed_tx` 事件的用户回调任务句柄
-    ///
-    /// ## 返回值
-    ///
-    /// 成功返回 [`FileWatcher`] 实例；创建监视器或注册文件失败时返回 [`notify::Error`]。
     /// # 创建文件监听器
     ///
     /// 启动去抖动任务并开始监听给定文件。只关注修改（modify）与删除（remove）事件，
@@ -305,20 +280,6 @@ impl FileWatcher {
     }
 }
 
-/// # 监视文件变化并执行回调
-///
-/// 监视给定文件列表的修改/删除事件，去抖后调用 `on_change` 回调。
-///
-/// ## 参数
-///
-/// * `files` - 要监视的文件路径列表
-/// * `debounce_delay` - 去抖延迟时长，事件停止发生该时长后才触发回调
-/// * `on_change` - 收到变化事件后执行的异步回调；回调返回 `anyhow::Result<()>`，
-///   执行失败仅记录警告日志，不影响后续监视
-///
-/// ## 返回值
-///
-/// 成功返回 [`FileWatcher`]；创建监视器或注册文件失败时返回 [`notify::Error`]。
 /// # 监听文件变更并执行回调（推荐入口）
 ///
 /// 对给定文件启动监听，变更事件经 `debounce_delay` 去抖动后触发 `on_change` 回调。
