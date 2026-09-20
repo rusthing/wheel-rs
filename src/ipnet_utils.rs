@@ -42,7 +42,7 @@ pub fn is_exact(net: &IpNet) -> bool {
     }
 }
 
-/// 获取本机首个非 loopback 的 IPv4 地址。
+/// # 获取本机首个非 loopback 的 IPv4 地址。
 ///
 /// 通过遍历系统网卡接口获取，不依赖外网连通性。
 ///

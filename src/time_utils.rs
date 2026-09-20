@@ -23,7 +23,7 @@ pub fn now_ts() -> u64 {
     Utc::now().timestamp() as u64
 }
 
-/// 获取当前 Unix 时间戳（毫秒）。
+/// # 获取当前 Unix 时间戳（毫秒）
 ///
 /// 返回自 Unix 纪元（1970-01-01 00:00:00 UTC）以来的毫秒数。
 /// 精度介于秒和纳秒之间，适用于需要毫秒级精度的一般场景。
@@ -40,7 +40,7 @@ pub fn now_ms() -> u64 {
     Utc::now().timestamp_millis() as u64
 }
 
-/// 获取当前 Unix 时间戳（纳秒）。
+/// # 获取当前 Unix 时间戳（纳秒）。
 ///
 /// 返回自 Unix 纪元（1970-01-01 00:00:00 UTC）以来的纳秒数。
 /// 适用于需要更高时间精度的场景，如性能测量或分布式唯一 ID 生成。
@@ -64,7 +64,7 @@ pub fn duration_to_string(d: Duration) -> String {
     humantime::format_duration(d).to_string()
 }
 
-/// 将人类可读的时长字符串（如 `"5s"`、`"10m"`）解析为 `Duration`。
+/// # 将人类可读的时长字符串（如 `"5s"`、`"10m"`）解析为 `Duration`。
 ///
 /// 解析失败时返回零时长。
 pub fn string_to_duration(s: String) -> Duration {
