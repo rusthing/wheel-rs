@@ -19,6 +19,7 @@
 //! - [`config_utils`] — 配置差异比较工具
 //! - [`ipnet_utils`] — IP 网络比较与精确性判断工具
 //! - [`str_utils`] — 字符串格式转换工具
+//! - [`trie`] — 压缩前缀树（Patricia Trie）
 //! - [`urn_utils`] — URN 解析与表示工具
 //! - [`cmd`] — 命令行执行工具
 //! - [`process`] — 进程管理工具
@@ -34,4 +35,5 @@ pub mod process;
 pub mod serde;
 pub mod str_utils;
 pub mod time_utils;
+pub mod trie;
 pub mod urn_utils;
