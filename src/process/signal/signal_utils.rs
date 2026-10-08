@@ -93,7 +93,8 @@ async fn watch_signal_internal(
     debug!("watching signal...");
     let mut sighup_stream = signal(SignalKind::hangup())
         .map_err(|_| SignalError::RegisterSignalHandler("SIGHUP".to_string()))?;
-    let mut sigcont_stream = signal(SignalKind::from_raw(18))
+    // 使用 libc::SIGCONT 提高可移植性，避免硬编码信号号 18
+    let mut sigcont_stream = signal(SignalKind::from_raw(libc::SIGCONT))
         .map_err(|_| SignalError::RegisterSignalHandler("SIGCONT".to_string()))?;
     let mut sigint_stream = signal(SignalKind::interrupt())
         .map_err(|_| SignalError::RegisterSignalHandler("SIGINT".to_string()))?;

@@ -115,7 +115,7 @@ pub fn kill_process(mut child: Child) -> Result<(), Box<dyn std::error::Error>> 
 ///
 /// ## 平台差异
 ///
-/// * Unix系统: 使用 `kill -9 <process>` 命令
+/// * Unix系统: 使用 `nix` crate 的 `kill` 函数发送 `SIGKILL` 信号
 /// * Windows系统: 使用 `taskkill /F /PID <process>` 命令
 ///
 /// ## 错误处理
@@ -125,10 +125,11 @@ pub fn kill_process_by_id(pid: u32) -> std::io::Result<()> {
     debug!("killing process by id: {}", pid);
     #[cfg(unix)]
     {
-        Command::new("kill")
-            .arg("-9")
-            .arg(&pid.to_string())
-            .output()?;
+        // 使用 nix crate 发送 SIGKILL 信号，避免通过 shell 命令
+        nix::sys::signal::kill(
+            nix::unistd::Pid::from_raw(pid as i32),
+            nix::sys::signal::Signal::SIGKILL,
+        )?;
     }
 
     #[cfg(windows)]

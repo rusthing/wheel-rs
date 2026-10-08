@@ -259,16 +259,14 @@ impl Urn {
             });
         }
 
-        // 按 ':' 分割URN获取method和url
-        let parts: Vec<&str> = urn.splitn(2, ':').collect();
-        let (method, url) = match parts.len() {
-            1 => (None, parts[0].trim()),
-            2 => (Some(parts[0].trim()), parts[1].trim()),
-            _ => Err(UrnError::Parse(format!("Invalid URN \"{urn}\"")))?,
+        // 使用 split_once 只分割第一个冒号，避免 URL 中包含多个冒号时被错误分割
+        let (method, url) = match urn.split_once(':') {
+            Some((m, u)) => (Some(m.trim()), u.trim()),
+            None => (None, urn.trim()),
         };
 
         if url.is_empty() {
-            Err(UrnError::Parse(format!("Invalid URN \"{urn}\"")))?
+            return Err(UrnError::Parse(format!("Invalid URN \"{urn}\"")));
         }
 
         let method = method.map(|m| Method::from_str(&m)).transpose()?;

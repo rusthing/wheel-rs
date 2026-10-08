@@ -22,8 +22,8 @@ use std::time::Duration;
 
 /// # Duration 序列化
 ///
-/// 将 `Option<Duration>` 序列化为字符串格式。`Some(Duration)` 会被转换为以秒为单位的字符串，
-/// 格式为数字后跟 's' 字符（例如 "5s" 表示5秒）。None 值会被序列化为 null。
+/// 将 `Option<Duration>` 序列化为字符串格式。`Some(Duration)` 使用 `humantime` 库
+/// 进行格式化，保留完整的亚秒级精度。None 值会被序列化为 null。
 ///
 /// ## 示例
 ///
@@ -51,7 +51,8 @@ where
     S: Serializer,
 {
     if let Some(d) = duration {
-        serializer.serialize_str(&format!("{}s", d.as_secs()))
+        // 使用 humantime 保留亚秒级精度
+        serializer.serialize_str(&humantime::format_duration(*d).to_string())
     } else {
         serializer.serialize_none()
     }

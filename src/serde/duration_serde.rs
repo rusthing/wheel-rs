@@ -23,8 +23,8 @@ use std::time::Duration;
 
 /// # Duration序列化
 ///
-/// 将 Duration 序列化为字符串格式。Duration 会被转换为以秒为单位的字符串，
-/// 格式为数字后跟 's' 字符（例如 "5s" 表示5秒）。
+/// 将 Duration 序列化为字符串格式。使用 `humantime` 库进行格式化，
+/// 保留完整的亚秒级精度，输出如 "5s"、"1.5s"、"2m 3s" 等格式。
 ///
 /// ## 示例
 ///
@@ -48,7 +48,8 @@ pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Erro
 where
     S: Serializer,
 {
-    serializer.serialize_str(&format!("{}s", duration.as_secs()))
+    // 使用 humantime 保留亚秒级精度，避免 as_secs() 丢失小数部分
+    serializer.serialize_str(&humantime::format_duration(*duration).to_string())
 }
 
 /// # Duration反序列化

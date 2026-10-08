@@ -11,7 +11,7 @@ use std::time::Duration;
 /// # 序列化 `Option<Option<Duration>>`
 ///
 /// 将 `Option<Option<Duration>>` 序列化为字符串或 null：
-/// - `Some(Some(d))` → 字符串 `"{secs}s"`，其中 `secs` 为以秒为单位的值
+/// - `Some(Some(d))` → 字符串，使用 `humantime` 格式化，保留亚秒级精度
 /// - `Some(None)` 或 `None` → `null`
 ///
 /// ## 参数
@@ -25,7 +25,10 @@ where
     S: Serializer,
 {
     match value {
-        Some(Some(d)) => serializer.serialize_str(&format!("{}s", d.as_secs())),
+        Some(Some(d)) => {
+            // 使用 humantime 保留亚秒级精度
+            serializer.serialize_str(&humantime::format_duration(*d).to_string())
+        }
         Some(None) | None => serializer.serialize_none(),
     }
 }
