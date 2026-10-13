@@ -11,7 +11,7 @@
 //! ```
 //! use wheel_rs::file_utils::get_file_ext;
 //!
-//! // 获取文件扩展名（始终返回 Some；无扩展名时为整个文件名的 lowercase）
+//! // 获取文件扩展名（无扩展名时返回 None）
 //! let ext = get_file_ext("example.TXT").unwrap();
 //! assert_eq!(ext, "txt");
 //!
@@ -43,19 +43,17 @@ use tracing::{error, info, warn};
 ///
 /// ## 返回值
 ///
-/// 返回小写化的扩展名（不含点号）。**该函数始终返回 `Some`**，`Option` 只是历史签名遗留：
-/// 输入不含点号时，`split('.').last()` 得到的是整个输入本身，而不是空字符串。
-/// 需要区分"无扩展名"时，调用方应自行判断输入是否包含 `.`。
+/// 返回小写化的扩展名（不含点号）。文件名不包含点号（`.`）时返回 `None`。
 ///
 /// 几种边界输入的实测行为：
 ///
 /// | 输入 | 返回 |
 /// | --- | --- |
 /// | `"example.TXT"` | `Some("txt")` |
-/// | `"file_without_extension"` | `Some("file_without_extension")` |
+/// | `"file_without_extension"` | `None` |
 /// | `".gitignore"` | `Some("gitignore")` |
 /// | `"trailing."` | `Some("")` |
-/// | `""` | `Some("")` |
+/// | `""` | `None` |
 ///
 /// ## 示例
 ///
@@ -65,10 +63,12 @@ use tracing::{error, info, warn};
 /// assert_eq!(get_file_ext("example.TXT").as_deref(), Some("txt"));
 /// assert_eq!(get_file_ext("document.pdf").as_deref(), Some("pdf"));
 /// assert_eq!(get_file_ext("a.b.c").as_deref(), Some("c"));
-/// // 注意：无扩展名时返回的是整个文件名，而非空字符串
-/// assert_eq!(get_file_ext("README").as_deref(), Some("readme"));
+/// assert_eq!(get_file_ext("README"), None);
 /// ```
 pub fn get_file_ext(file_name: &str) -> Option<String> {
+    if !file_name.contains('.') {
+        return None;
+    }
     file_name
         .split('.')
         .last()
