@@ -338,9 +338,29 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Invalid URN:")]
     fn test_urn_with_empty_url() {
-        let _urn = Urn::from_str("PUT:");
+        // 空 URL 是解析失败，不是 panic：`from_str` 返回 `Err(UrnError::Parse)`。
+        let err = Urn::from_str("PUT:").unwrap_err();
+        assert!(matches!(err, UrnError::Parse(_)), "实际错误: {err:?}");
+        assert!(
+            err.to_string().contains("Invalid URN"),
+            "错误信息应带出原始输入: {err}"
+        );
+
+        // 只有冒号、以及整个串为空，同样走 URL 为空的判断
+        assert!(matches!(Urn::from_str(":").unwrap_err(), UrnError::Parse(_)));
+        assert!(matches!(Urn::from_str("").unwrap_err(), UrnError::Parse(_)));
+        assert!(matches!(
+            Urn::from_str("PUT:   ").unwrap_err(),
+            UrnError::Parse(_)
+        ));
+    }
+
+    #[test]
+    fn test_urn_with_invalid_method() {
+        // 方法非法时区分变体，便于调用方分辨「格式错」与「方法不认识」
+        let err = Urn::from_str("FETCH:example.com").unwrap_err();
+        assert!(matches!(err, UrnError::InvalidMethod(_)), "实际错误: {err:?}");
     }
 
     #[test]

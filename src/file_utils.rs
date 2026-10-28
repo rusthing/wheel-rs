@@ -9,13 +9,14 @@
 //! ## 示例
 //!
 //! ```
-//! use wheel_rs::file_utils::get_file_ext;
+//! use std::path::Path;
+//! use wheel_rs::file_utils::{calc_hash_of_file, get_file_ext};
 //!
 //! // 获取文件扩展名（无扩展名时返回 None）
 //! let ext = get_file_ext("example.TXT").unwrap();
 //! assert_eq!(ext, "txt");
 //!
-//! // 计算文件哈希值
+//! // 计算文件哈希值（文件不存在时返回 Err）
 //! if let Ok(hash) = calc_hash_of_file(Path::new("test.txt")) {
 //!     println!("文件哈希值: {}", hash);
 //! }
