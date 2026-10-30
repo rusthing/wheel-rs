@@ -56,21 +56,54 @@ pub fn get_local_ip(sub_net: Option<IpNet>) -> Result<String, IpnetError> {
     use nix::ifaddrs::getifaddrs;
     let addrs = getifaddrs().map_err(|_| IpnetError::NoLocalIp)?;
     for addr in addrs {
-        if let Some(sockaddr) = addr.address {
-            if let Some(sin) = sockaddr.as_sockaddr_in() {
-                let ip = sin.ip().to_string();
-                if ip == "127.0.0.1" {
-                    continue;
-                }
-                if let Some(ref net) = sub_net {
-                    let ip_addr: std::net::IpAddr = sin.ip().into();
-                    if !net.contains(&ip_addr) {
-                        continue;
-                    }
-                }
-                return Ok(ip);
-            }
+        let Some(sockaddr) = addr.address else {
+            continue;
+        };
+        let Some(sin) = sockaddr.as_sockaddr_in() else {
+            continue;
+        };
+        let ip = sin.ip();
+        // 127.0.0.0/8 整段都是回环，不能只挡 127.0.0.1
+        if ip.is_loopback() || ip.is_unspecified() {
+            continue;
         }
+        if let Some(ref net) = sub_net
+            && !net.contains(&std::net::IpAddr::V4(ip))
+        {
+            continue;
+        }
+        return Ok(ip.to_string());
     }
     Err(IpnetError::NoLocalIp)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    fn net(s: &str) -> IpNet {
+        IpNet::from_str(s).unwrap()
+    }
+
+    #[test]
+    fn exact_networks_sort_first() {
+        let host = net("192.168.1.10/32");
+        let subnet = net("192.168.1.0/24");
+        assert!(is_exact(&host));
+        assert!(!is_exact(&subnet));
+        assert_eq!(com_ip(&host, &subnet), Ordering::Less);
+        assert_eq!(com_ip(&subnet, &host), Ordering::Greater);
+        // 同为精确 / 同为非精确时按 IpNet 自身顺序
+        assert_eq!(
+            com_ip(&net("10.0.0.1/32"), &net("10.0.0.2/32")),
+            net("10.0.0.1/32").cmp(&net("10.0.0.2/32"))
+        );
+    }
+
+    #[test]
+    fn ipv6_exact_prefix_is_128() {
+        assert!(is_exact(&net("::1/128")));
+        assert!(!is_exact(&net("::/0")));
+    }
 }

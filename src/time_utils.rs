@@ -34,7 +34,8 @@ pub const MAX_FUTURE_SKEW_MS: u64 = 24 * 60 * 60 * 1000;
 /// println!("当前秒级时间戳: {timestamp}");
 /// ```
 pub fn now_ts() -> u64 {
-    Utc::now().timestamp() as u64
+    // 系统时钟早于 1970 时返回 0，而不是把负数 as 成巨大的 u64
+    Utc::now().timestamp().max(0) as u64
 }
 
 /// # 获取当前 Unix 时间戳（毫秒）
@@ -51,13 +52,16 @@ pub fn now_ts() -> u64 {
 /// println!("当前毫秒时间戳: {timestamp}");
 /// ```
 pub fn now_ms() -> u64 {
-    Utc::now().timestamp_millis() as u64
+    Utc::now().timestamp_millis().max(0) as u64
 }
 
-/// # 获取当前 Unix 时间戳（纳秒）。
+/// # 获取当前 Unix 时间戳（纳秒）
 ///
 /// 返回自 Unix 纪元（1970-01-01 00:00:00 UTC）以来的纳秒数。
 /// 适用于需要更高时间精度的场景，如性能测量或分布式唯一 ID 生成。
+///
+/// 纳秒时间戳的可表示范围约为 1677 年 ~ 2262 年，超出该范围或系统时钟早于
+/// 1970 年时返回 `0`（不 panic）。
 ///
 /// ## 示例
 ///
@@ -68,7 +72,7 @@ pub fn now_ms() -> u64 {
 /// println!("当前纳秒时间戳: {timestamp}");
 /// ```
 pub fn now_ns() -> u64 {
-    Utc::now().timestamp_nanos_opt().unwrap() as u64
+    Utc::now().timestamp_nanos_opt().unwrap_or_default().max(0) as u64
 }
 
 /// # 将 `Duration` 转为人类可读的字符串
@@ -83,8 +87,21 @@ pub fn duration_to_string(d: Duration) -> String {
 ///
 /// 支持 `humantime` 格式，如 `"5s"`、`"10m"`、`"1h 30m"` 等。
 /// 解析失败时返回零时长（`Duration::default()`）。
-pub fn string_to_duration(s: String) -> Duration {
-    humantime::parse_duration(&s).unwrap_or_default()
+///
+/// 参数取 `&str`，调用方无需交出 `String` 所有权；需要 `String` 时传 `&s` 即可。
+///
+/// ## 示例
+///
+/// ```
+/// use std::time::Duration;
+/// use wheel_rs::time_utils::string_to_duration;
+///
+/// assert_eq!(string_to_duration("5s"), Duration::from_secs(5));
+/// // 解析失败不 panic，返回零时长
+/// assert_eq!(string_to_duration("not-a-duration"), Duration::ZERO);
+/// ```
+pub fn string_to_duration(s: &str) -> Duration {
+    humantime::parse_duration(s).unwrap_or_default()
 }
 
 /// # 构建定时器

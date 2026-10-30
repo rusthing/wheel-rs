@@ -20,9 +20,11 @@ pub enum AddrError {
 ///
 /// 表示由主机名或 IP 地址（`host`）与可选端口号（`port`）组成的网络地址。
 /// 支持 IPv4、IPv6（带方括号形式）以及主机名等多种形式。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Addr {
+    /// 主机名或 IP 地址；IPv6 地址**不带**方括号（方括号只在格式化时补上）
     pub host: String,
+    /// 端口号；`None` 表示未指定端口
     pub port: Option<u16>,
 }
 
@@ -60,7 +62,32 @@ impl Addr {
     /// ## 错误
     ///
     /// 地址格式非法、主机为空或端口无法解析为 `u16` 时返回 [`AddrError::Parse`]。
+    ///
+    /// ## 示例
+    ///
+    /// ```
+    /// use wheel_rs::addr_utils::Addr;
+    ///
+    /// let addr = Addr::from_str("example.com:8080").unwrap();
+    /// assert_eq!(addr.host, "example.com");
+    /// assert_eq!(addr.port, Some(8080));
+    ///
+    /// // IPv6 带方括号：方括号会被去掉，格式化时再补上
+    /// let addr = Addr::from_str("[::1]:8080").unwrap();
+    /// assert_eq!(addr.to_string(), "[::1]:8080");
+    ///
+    /// // 也可以走标准 trait
+    /// assert!(("example.com:80").parse::<Addr>().is_ok());
+    /// ```
+    // 保留固有 `from_str`：下游大量以 `Addr::from_str(..)` 调用，不能改成只有 trait 方法
+    // （那会要求调用方 `use std::str::FromStr`）。trait 实现见下方，两者共用 `parse`。
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Addr, AddrError> {
+        Self::parse(s)
+    }
+
+    /// 内部解析实现：`from_str`（固有方法）与 [`std::str::FromStr`] 共用
+    fn parse(s: &str) -> Result<Addr, AddrError> {
         let (host, port) = if let Some(inner) = s.strip_prefix('[') {
             let bracket_end = inner
                 .find(']')
@@ -98,6 +125,14 @@ impl Addr {
     }
 }
 
+impl std::str::FromStr for Addr {
+    type Err = AddrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Addr::parse(s)
+    }
+}
+
 impl Display for Addr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(port) = self.port {
@@ -127,7 +162,7 @@ impl<'de> Deserialize<'de> for Addr {
         D: serde::Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        Addr::from_str(&s).map_err(|e| serde::de::Error::custom(format!("{:?}", e)))
+        Addr::from_str(&s).map_err(|e| serde::de::Error::custom(e.to_string()))
     }
 }
 
@@ -142,5 +177,70 @@ impl ToSocketAddrs for Addr {
             )
         })?;
         (self.host.as_str(), port).to_socket_addrs()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_host_only() {
+        let a = Addr::from_str("example.com").unwrap();
+        assert_eq!((a.host.as_str(), a.port), ("example.com", None));
+        let a = Addr::from_str("192.168.1.1").unwrap();
+        assert_eq!((a.host.as_str(), a.port), ("192.168.1.1", None));
+    }
+
+    #[test]
+    fn parses_host_with_port() {
+        let a = Addr::from_str("example.com:8080").unwrap();
+        assert_eq!((a.host.as_str(), a.port), ("example.com", Some(8080)));
+    }
+
+    #[test]
+    fn parses_bracketed_ipv6() {
+        let a = Addr::from_str("[::1]:8080").unwrap();
+        assert_eq!((a.host.as_str(), a.port), ("::1", Some(8080)));
+        assert_eq!(a.to_string(), "[::1]:8080");
+
+        let a = Addr::from_str("[::1]").unwrap();
+        assert_eq!((a.host.as_str(), a.port), ("::1", None));
+        assert_eq!(a.to_string(), "::1");
+    }
+
+    #[test]
+    fn bare_ipv6_has_no_port() {
+        let a = Addr::from_str("fe80::1").unwrap();
+        assert_eq!((a.host.as_str(), a.port), ("fe80::1", None));
+    }
+
+    #[test]
+    fn rejects_invalid_input() {
+        assert!(Addr::from_str("").is_err());
+        assert!(Addr::from_str(":8080").is_err());
+        assert!(Addr::from_str("host:not-a-port").is_err());
+        assert!(Addr::from_str("host:70000").is_err());
+        assert!(Addr::from_str("[::1").is_err());
+    }
+
+    #[test]
+    fn round_trip_through_display() {
+        for s in ["example.com", "example.com:8080", "[::1]:8080", "fe80::1"] {
+            let a = Addr::from_str(s).unwrap();
+            assert_eq!(a.to_string(), s);
+        }
+    }
+
+    #[test]
+    fn socket_addrs_requires_port() {
+        use std::net::ToSocketAddrs;
+        let no_port = Addr::from_str("127.0.0.1").unwrap();
+        assert!(no_port.to_socket_addrs().is_err());
+
+        let with_port = Addr::from_str("127.0.0.1:80").unwrap();
+        let addrs: Vec<_> = with_port.to_socket_addrs().unwrap().collect();
+        assert_eq!(addrs.len(), 1);
+        assert_eq!(addrs[0].port(), 80);
     }
 }

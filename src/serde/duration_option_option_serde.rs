@@ -2,8 +2,8 @@
 //!
 //! 此模块提供了对 `Option<Option<Duration>>` 类型的自定义序列化和反序列化实现，
 //! 用于区分"字段不存在"（外层 `None`）与"字段存在但值为空"（`Some(None)`）两种情况。
-//! 序列化时将内层的 `Duration` 转换为以秒为单位的字符串（如 "5s" 表示 5 秒），
-//! 反序列化时将字符串解析为 `Duration`。
+//! 序列化时将内层的 `Duration` 用 `humantime` 格式化为字符串（如 `"5s"`、`"1h 30m"`），
+//! 反序列化时按同样的格式解析。
 
 use serde::{Deserialize, Deserializer, Serializer};
 use std::time::Duration;

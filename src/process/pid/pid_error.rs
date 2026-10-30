@@ -44,7 +44,7 @@ pub enum PidError {
     /// 解析 PID 文件内容失败错误
     ///
     /// 当 PID 文件内容格式不正确或无法解析时返回此错误
-    #[error("Fail to parse content of PID file : {0}")]
+    #[error("Fail to parse content of PID file: {0}")]
     ParsePidFileContent(String),
 
     /// 删除 PID 文件失败错误

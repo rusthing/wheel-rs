@@ -75,7 +75,7 @@ fn diff_table(
         };
 
         // 旧表中存在但新表中不存在的 key，记录为移除（用 Nil 表示）
-        if !new_table.contains_key(key) && !changed.contains_key(&full_key) {
+        if !new_table.contains_key(key) {
             changed.insert(full_key, Value::new(None, ValueKind::Nil));
         }
     }
@@ -83,16 +83,85 @@ fn diff_table(
 
 /// # 判断配置是否发生变化
 ///
-/// 检查 [`diff_config`] 返回的差异 Map 中是否存在以给定前缀开头的 key。
+/// 检查 [`diff_config`] 返回的差异 Map 中是否存在位于给定前缀之下的 key。
+///
+/// 前缀按 **`.` 分段边界**匹配：`key_prefix` 为 `"a.b"` 时，`"a.b"` 与 `"a.b.c"`
+/// 都算命中，而 `"a.bc"` **不算**——否则 `"a"` 会误命中 `"abc"`，导致无关配置的
+/// 变更被当成自己这一块的变更。
 ///
 /// ## 参数
 ///
-/// * `key_prefix` - 要匹配的全路径 key 前缀（如 "a.b"）
+/// * `key_prefix` - 要匹配的全路径 key 前缀（如 "a.b"）；末尾的 `.` 会被忽略
 /// * `changed` - [`diff_config`] 返回的差异 Map
 ///
 /// ## 返回值
 ///
-/// 若存在以 `key_prefix` 开头的 key 则返回 `true`，否则返回 `false`。
+/// 若存在位于 `key_prefix` 之下的 key 则返回 `true`；空前缀表示「任意变更」。
 pub fn has_config_changed(key_prefix: &str, changed: &Map<String, Value>) -> bool {
-    changed.keys().any(|key| key.starts_with(key_prefix))
+    let prefix = key_prefix.trim_end_matches('.');
+    if prefix.is_empty() {
+        return !changed.is_empty();
+    }
+    changed.keys().any(|key| {
+        key == prefix
+            || key
+                .strip_prefix(prefix)
+                .is_some_and(|rest| rest.starts_with('.'))
+    })
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config_of(pairs: &[(&str, &str)]) -> Config {
+        let mut table = Map::new();
+        for (k, v) in pairs {
+            table.insert(
+                (*k).to_string(),
+                Value::new(None, ValueKind::String((*v).to_string())),
+            );
+        }
+        let mut cfg = Config::default();
+        cfg.cache.kind = ValueKind::Table(table);
+        cfg
+    }
+
+    #[test]
+    fn diff_reports_added_changed_removed() {
+        let old = config_of(&[("same", "1"), ("changed", "old"), ("removed", "x")]);
+        let new = config_of(&[("same", "1"), ("changed", "new"), ("added", "y")]);
+        let changed = diff_config(&old, &new);
+
+        assert!(!changed.contains_key("same"));
+        assert_eq!(changed["changed"].to_string(), "new");
+        assert_eq!(changed["added"].to_string(), "y");
+        assert!(matches!(changed["removed"].kind, ValueKind::Nil));
+    }
+
+    #[test]
+    fn prefix_matches_on_key_boundary() {
+        let changed = diff_config(&config_of(&[]), &config_of(&[("abc", "1")]));
+        // "a" 不是 "abc" 的父级前缀
+        assert!(!has_config_changed("a", &changed));
+        // 完全同名、以及以 "." 分隔的子级才算命中
+        assert!(has_config_changed("abc", &changed));
+
+        let nested = diff_config(&config_of(&[]), &config_of(&[("a.b.c", "1")]));
+        assert!(has_config_changed("a", &nested));
+        assert!(has_config_changed("a.b", &nested));
+        assert!(has_config_changed("a.b.", &nested));
+        assert!(!has_config_changed("a.bc", &nested));
+    }
+
+    #[test]
+    fn empty_prefix_means_any_change() {
+        assert!(!has_config_changed(
+            "",
+            &diff_config(&config_of(&[]), &config_of(&[]))
+        ));
+        assert!(has_config_changed(
+            "",
+            &diff_config(&config_of(&[]), &config_of(&[("a", "1")]))
+        ));
+    }
 }

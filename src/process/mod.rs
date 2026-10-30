@@ -9,6 +9,9 @@
 //! 外部可通过 `wheel_rs::process::*` 直接引用。
 
 mod pid;
+// 子模块名与父模块同名（process::process），clippy 会报 module_inception。
+// 这里的命名与 Java 版保持一致，改动会影响模块路径，故保留。
+#[allow(clippy::module_inception)]
 mod process;
 mod signal;
 

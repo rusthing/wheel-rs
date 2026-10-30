@@ -20,7 +20,7 @@ use std::fmt;
 ///
 /// ## 返回值
 /// 返回序列化结果，序列化失败时返回 `S::Error`。
-pub fn serialize<S>(vec: &Vec<Regex>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(vec: &[Regex], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {

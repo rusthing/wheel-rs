@@ -2,11 +2,10 @@
 //!
 //! 此模块提供了一系列函数来处理路径缓冲区类型的序列化和反序列化，
 //! 支持将字符串转换为 PathBuf，以及将 PathBuf 序列化为适当的 JSON 格式。
-//!
 
-use serde::{de::Visitor, Deserializer, Serializer};
+use serde::{Deserializer, Serializer, de::Visitor};
 use std::fmt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// # 将 `PathBuf` 序列化为 JSON 字符串
 ///
@@ -25,7 +24,7 @@ use std::path::PathBuf;
 ///     path: PathBuf,
 /// }
 /// ```
-pub fn serialize<S>(path: &PathBuf, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(path: &Path, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {

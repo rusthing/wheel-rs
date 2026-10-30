@@ -5,8 +5,7 @@
 //! 反序列化时不区分大小写。
 
 use hickory_resolver::config::ResolveHosts;
-use serde::de::Unexpected;
-use serde::{Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serializer, de::Unexpected};
 
 /// # 将 `Option<ResolveHosts>` 序列化为字符串或 null
 ///

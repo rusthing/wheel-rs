@@ -29,7 +29,7 @@ pub enum MethodError {
 
 /// # HTTP 方法枚举
 ///
-/// 定义了常用的 HTTP 方法类型，包括 GET、POST、PUT 和 DELETE
+/// 定义了常用的 HTTP 方法类型，包括 GET、POST、PUT、DELETE、OPTIONS、HEAD 和 PATCH。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Method {
     /// GET 方法 - 用于请求获取资源
@@ -42,50 +42,26 @@ pub enum Method {
     Delete,
     /// OPTIONS 方法 - 用于获取资源的可用方法
     Options,
-    /// HEAD 方法 - 用于请求获取资源的header头，不返回Body
+    /// HEAD 方法 - 只请求响应头，不返回 Body
     Head,
     /// PATCH 方法 - 用于部分更新资源的指定字段
     Patch,
 }
 
-impl<'de> Deserialize<'de> for Method {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?.to_uppercase();
-        match s.as_str() {
-            "GET" => Ok(Method::Get),
-            "POST" => Ok(Method::Post),
-            "PUT" => Ok(Method::Put),
-            "DELETE" => Ok(Method::Delete),
-            "OPTIONS" => Ok(Method::Options),
-            "HEAD" => Ok(Method::Head),
-            "PATCH" => Ok(Method::Patch),
-            _ => Err(serde::de::Error::custom(format!("Invalid method: {}", s))),
+impl Method {
+    /// 返回方法的大写字符串形式（`"GET"`、`"POST"` …），不分配内存
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Method::Get => "GET",
+            Method::Post => "POST",
+            Method::Put => "PUT",
+            Method::Delete => "DELETE",
+            Method::Options => "OPTIONS",
+            Method::Head => "HEAD",
+            Method::Patch => "PATCH",
         }
     }
-}
 
-impl std::fmt::Display for Method {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Method::Get => "GET".to_string(),
-                Method::Post => "POST".to_string(),
-                Method::Put => "PUT".to_string(),
-                Method::Delete => "DELETE".to_string(),
-                Method::Options => "OPTIONS".to_string(),
-                Method::Head => "HEAD".to_string(),
-                Method::Patch => "PATCH".to_string(),
-            }
-        )
-    }
-}
-
-impl Method {
     /// # 从字符串解析 HTTP 方法
     ///
     /// 大小写不敏感，受支持的方法为 GET、POST、PUT、DELETE、OPTIONS、HEAD、PATCH。
@@ -102,13 +78,23 @@ impl Method {
     /// ## 示例
     ///
     /// ```
-    /// use wheel_rs::urn_utils::{Method, MethodError};
+    /// use wheel_rs::urn_utils::Method;
     ///
     /// assert!(matches!(Method::from_str("get").unwrap(), Method::Get));
     /// assert!(matches!(Method::from_str("PATCH").unwrap(), Method::Patch));
     /// assert!(Method::from_str("TRACE").is_err());
+    ///
+    /// // 也可以走标准 trait
+    /// assert!(matches!("post".parse::<Method>().unwrap(), Method::Post));
     /// ```
+    // 保留固有 `from_str` 以兼容既有调用方；trait 实现见下方，两者共用 `parse_str`。
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(method: &str) -> Result<Self, MethodError> {
+        Self::parse_str(method)
+    }
+
+    /// 内部解析实现：`from_str`（固有方法）与 [`std::str::FromStr`] 共用同一套映射
+    fn parse_str(method: &str) -> Result<Self, MethodError> {
         match method.to_uppercase().as_str() {
             "GET" => Ok(Self::Get),
             "POST" => Ok(Self::Post),
@@ -117,8 +103,32 @@ impl Method {
             "OPTIONS" => Ok(Self::Options),
             "HEAD" => Ok(Self::Head),
             "PATCH" => Ok(Self::Patch),
-            _ => Err(MethodError::Parse(format!("Invalid method: {}", method))),
+            _ => Err(MethodError::Parse(format!("Invalid method: {method}"))),
         }
+    }
+}
+
+impl std::str::FromStr for Method {
+    type Err = MethodError;
+
+    fn from_str(method: &str) -> Result<Self, Self::Err> {
+        Method::parse_str(method)
+    }
+}
+
+impl<'de> Deserialize<'de> for Method {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Method::parse_str(&s).map_err(serde::de::Error::custom)
+    }
+}
+
+impl std::fmt::Display for Method {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -172,7 +182,7 @@ impl<'de> Deserialize<'de> for Urn {
 impl std::fmt::Display for Urn {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(method) = &self.method {
-            write!(f, "{}:{}", method.to_string(), self.url)
+            write!(f, "{method}:{}", self.url)
         } else {
             write!(f, "{}", self.url)
         }
@@ -221,9 +231,7 @@ impl Urn {
     ///
     /// ## 参数
     ///
-    /// * `urn` - 表示 URN 的字符串，支持两种格式：
-    ///   - 显式方法格式：`METHOD:URL`，例如 `GET:example.com`
-    ///   - HTTP 前缀格式：`http:URL` 或 `https:URL`，会自动设置方法为 GET
+    /// * `urn` - 表示 URN 的字符串，支持上述三种格式
     ///
     /// ## 返回值
     ///
@@ -250,8 +258,19 @@ impl Urn {
     ///
     /// // URL 为空时返回 Err 而非 panic
     /// assert!(Urn::from_str("PUT:").is_err());
+    ///
+    /// // 也可以走标准 trait
+    /// let urn: Urn = "POST:example.com".parse().unwrap();
+    /// assert!(matches!(urn.method, Some(Method::Post)));
     /// ```
+    // 保留固有 `from_str` 以兼容既有调用方；trait 实现见下方，两者共用 `parse`。
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(urn: &str) -> Result<Self, UrnError> {
+        Self::parse(urn)
+    }
+
+    /// 内部解析实现：`from_str`（固有方法）与 [`std::str::FromStr`] 共用
+    fn parse(urn: &str) -> Result<Self, UrnError> {
         if urn.starts_with("http:") || urn.starts_with("https:") {
             return Ok(Self {
                 method: Some(Method::Get),
@@ -269,7 +288,7 @@ impl Urn {
             return Err(UrnError::Parse(format!("Invalid URN \"{urn}\"")));
         }
 
-        let method = method.map(|m| Method::from_str(&m)).transpose()?;
+        let method = method.map(Method::from_str).transpose()?;
 
         Ok(Self {
             method,
@@ -310,12 +329,20 @@ impl Urn {
     /// assert!(any.matches("POST", "example.com"));
     /// ```
     pub fn matches(&self, method: &str, url: &str) -> bool {
-        if let Some(self_method) = &self.method {
-            if self_method.to_string() != method.to_uppercase() {
-                return false;
-            }
+        if let Some(self_method) = &self.method
+            && self_method.as_str() != method.to_uppercase()
+        {
+            return false;
         }
         url.starts_with(&self.url)
+    }
+}
+
+impl std::str::FromStr for Urn {
+    type Err = UrnError;
+
+    fn from_str(urn: &str) -> Result<Self, Self::Err> {
+        Urn::parse(urn)
     }
 }
 
@@ -348,7 +375,10 @@ mod tests {
         );
 
         // 只有冒号、以及整个串为空，同样走 URL 为空的判断
-        assert!(matches!(Urn::from_str(":").unwrap_err(), UrnError::Parse(_)));
+        assert!(matches!(
+            Urn::from_str(":").unwrap_err(),
+            UrnError::Parse(_)
+        ));
         assert!(matches!(Urn::from_str("").unwrap_err(), UrnError::Parse(_)));
         assert!(matches!(
             Urn::from_str("PUT:   ").unwrap_err(),
@@ -360,7 +390,10 @@ mod tests {
     fn test_urn_with_invalid_method() {
         // 方法非法时区分变体，便于调用方分辨「格式错」与「方法不认识」
         let err = Urn::from_str("FETCH:example.com").unwrap_err();
-        assert!(matches!(err, UrnError::InvalidMethod(_)), "实际错误: {err:?}");
+        assert!(
+            matches!(err, UrnError::InvalidMethod(_)),
+            "实际错误: {err:?}"
+        );
     }
 
     #[test]

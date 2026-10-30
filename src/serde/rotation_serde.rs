@@ -8,7 +8,7 @@
 //! ```rust
 //! use serde::{Deserialize, Serialize};
 //! use tracing_appender::rolling::Rotation;
-//! 
+//!
 //! #[derive(Serialize, Deserialize)]
 //! struct Config {
 //!     #[serde(with = "wheel_rs::serde::rotation_serde")]
@@ -16,8 +16,7 @@
 //! }
 //! ```
 
-use serde::de::Unexpected;
-use serde::{Deserialize, Deserializer, Serializer};
+use serde::{Deserialize, Deserializer, Serializer, de::Unexpected};
 use tracing_appender::rolling::Rotation;
 
 /// # 序列化轮转策略
@@ -54,6 +53,9 @@ use tracing_appender::rolling::Rotation;
 /// let cfg = Config { log_rotation: Rotation::DAILY };
 /// assert_eq!(serde_json::to_string(&cfg).unwrap(), r#"{"log_rotation":"daily"}"#);
 /// ```
+// `Rotation` 的取值是关联常量（不是枚举变体），因此匹配 `&Rotation` 时必须写 `&`，
+// clippy 的 match_ref_pats 在这里是误报。
+#[allow(clippy::match_ref_pats)]
 pub fn serialize<S>(value: &Rotation, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,

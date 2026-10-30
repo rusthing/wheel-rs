@@ -5,8 +5,7 @@
 //! 反序列化时不区分大小写。
 
 use hickory_resolver::config::ResolveHosts;
-use serde::de::Unexpected;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de::Unexpected};
 
 /// # 将 `ResolveHosts` 序列化为字符串
 ///
@@ -45,16 +44,14 @@ pub fn deserialize<'de, D>(deserializer: D) -> Result<ResolveHosts, D::Error>
 where
     D: Deserializer<'de>,
 {
-    {
-        let s = String::deserialize(deserializer)?;
-        Ok(match s.to_lowercase().as_str() {
-            "auto" => ResolveHosts::Auto,
-            "always" => ResolveHosts::Always,
-            "never" => ResolveHosts::Never,
-            _ => Err(serde::de::Error::invalid_value(
-                Unexpected::Str(&s),
-                &"auto, always, never",
-            ))?,
-        })
+    let s = String::deserialize(deserializer)?;
+    match s.to_lowercase().as_str() {
+        "auto" => Ok(ResolveHosts::Auto),
+        "always" => Ok(ResolveHosts::Always),
+        "never" => Ok(ResolveHosts::Never),
+        _ => Err(serde::de::Error::invalid_value(
+            Unexpected::Str(&s),
+            &"auto, always, never",
+        )),
     }
 }

@@ -8,8 +8,8 @@
 //! - 杀死进程
 
 use crate::cmd::cmd_error::CmdError;
-use tracing::debug;
 use std::process::{Child, Command};
+use tracing::debug;
 
 /// # 执行外部命令
 ///
@@ -48,11 +48,16 @@ pub fn execute(cmd: &str, args: &[&str]) -> Result<Vec<u8>, CmdError> {
     let output = Command::new(cmd)
         .args(args)
         .output()
-        .map_err(|e| CmdError::Execute(e))?;
+        .map_err(CmdError::Execute)?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        return Err(CmdError::Run(stderr));
+        return Err(CmdError::Run(if stderr.is_empty() {
+            // 命令把错误信息写到了 stdout 或者什么都没写，至少把退出码带出去
+            format!("command `{cmd}` exited with {}", output.status)
+        } else {
+            stderr
+        }));
     }
 
     Ok(output.stdout)
@@ -115,8 +120,9 @@ pub fn kill_process(mut child: Child) -> Result<(), Box<dyn std::error::Error>> 
 ///
 /// ## 平台差异
 ///
-/// * Unix系统: 使用 `nix` crate 的 `kill` 函数发送 `SIGKILL` 信号
-/// * Windows系统: 使用 `taskkill /F /PID <process>` 命令
+/// 本库依赖 `nix`，目前只在 Unix 上可用：
+/// - Unix系统: 使用 `nix` crate 的 `kill` 函数发送 `SIGKILL` 信号
+/// - Windows系统: 保留 `taskkill /F /PID <process>` 分支，但整库尚不支持 Windows
 ///
 /// ## 错误处理
 ///

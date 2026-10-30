@@ -5,12 +5,12 @@
 
 use crate::process::SignalError;
 use libc::pid_t;
-use tracing::{debug, info};
 use nix::sys::signal::kill;
 use nix::unistd::Pid;
-use tokio::signal::unix::{signal, SignalKind};
+use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::{Receiver, Sender};
+use tracing::{debug, error, info};
 
 /// # 通过指令发送系统信号给指定进程
 ///
@@ -49,16 +49,17 @@ pub fn send_signal_by_instruction(instruction: &str, pid: u32) -> Result<(), Sig
         "stop" | "terminate" => nix::sys::signal::Signal::SIGTERM,
         "quit" => nix::sys::signal::Signal::SIGQUIT,
         "kill" => nix::sys::signal::Signal::SIGKILL,
-        _ => Err(SignalError::InvalidInstruction(instruction.to_string()))?,
+        _ => return Err(SignalError::InvalidInstruction(instruction)),
     };
     kill(Pid::from_raw(pid as pid_t), signal)
-        .map_err(|_| SignalError::SendSignal(signal.to_string()))
+        .map_err(|e| SignalError::SendSignal(format!("{signal}: {e}")))
 }
 
 /// # 异步监听系统信号
 ///
-/// 该函数异步监听多种系统信号（如 `SIGHUP`、`SIGINT`、`SIGTERM` 等），并在接收到信号时执行相应操作。
-/// 目前实现了基本的日志输出功能，未来可根据需求扩展更多信号处理逻辑。
+/// 该函数异步监听多种系统信号（如 `SIGHUP`、`SIGINT`、`SIGTERM` 等），并在接收到信号时
+/// 广播给调用方。监听任务由 `tokio::spawn` 启动，**不会 panic**：注册失败或广播失败
+/// 只记录日志。
 ///
 /// ## 监听的信号
 ///
@@ -71,18 +72,19 @@ pub fn send_signal_by_instruction(instruction: &str, pid: u32) -> Result<(), Sig
 /// ## 返回值
 ///
 /// 返回一个 `tokio::sync::broadcast::Receiver`，调用方可通过 `recv()` 异步接收监听到的系统信号
-/// （类型为 `nix::sys::signal::Signal`）。
+/// （类型为 `nix::sys::signal::Signal`）。注意：**所有** `Receiver` 都被丢弃后，后续信号
+/// 只记录日志，不会导致监听任务退出。
 ///
 /// ## 注意事项
 ///
 /// - 该函数使用 `tokio::spawn` 启动异步任务，需在 `tokio` 运行时环境中调用。
-/// - 信号处理逻辑目前仅为日志输出，可根据实际需求扩展具体业务逻辑。
+/// - 信号处理逻辑目前仅为日志输出 + 广播，可根据实际需求扩展具体业务逻辑。
 pub fn watch_signal() -> Receiver<nix::sys::signal::Signal> {
     let (sender, receiver) = broadcast::channel(16);
-    tokio::spawn(async {
-        watch_signal_internal(sender)
-            .await
-            .expect("watch signal error");
+    tokio::spawn(async move {
+        if let Err(e) = watch_signal_internal(sender).await {
+            error!("watch signal stopped: {e}");
+        }
     });
     receiver
 }
@@ -107,33 +109,63 @@ async fn watch_signal_internal(
         tokio::select! {
             _ = sighup_stream.recv() => {
                 let signal = nix::sys::signal::Signal::SIGHUP;
-                sender.send(signal).expect(format!("send signal error: {signal}").as_str());
+                broadcast_signal(&sender, signal);
                 info!("程序挂起({signal})");
             }
             _ = sigcont_stream.recv() => {
                 let signal = nix::sys::signal::Signal::SIGCONT;
-                sender.send(signal).expect(format!("send signal error: {signal}").as_str());
+                broadcast_signal(&sender, signal);
                 info!("程序继续运行({signal})");
             }
             _ = sigint_stream.recv() => {
                 let signal = nix::sys::signal::Signal::SIGINT;
-                sender.send(signal).expect(format!("send signal error: {signal}").as_str());
+                broadcast_signal(&sender, signal);
                 info!("程序中断运行({signal})");
                 break;
             }
             _ = sigquit_stream.recv() => {
                 let signal = nix::sys::signal::Signal::SIGQUIT;
-                sender.send(signal).expect(format!("send signal error: {signal}").as_str());
+                broadcast_signal(&sender, signal);
                 info!("程序退出运行({signal})");
                 break;
             }
             _ = sigterm_stream.recv() => {
                 let signal = nix::sys::signal::Signal::SIGTERM;
-                sender.send(signal).expect(format!("send signal error: {signal}").as_str());
+                broadcast_signal(&sender, signal);
                 info!("程序终止运行({signal})");
                 break;
             }
         }
     }
     Ok(())
+}
+
+/// 广播一次信号。
+///
+/// `broadcast::Sender::send` 在**没有存活订阅者**时返回 `Err`，这是完全正常的状态
+/// （调用方可能还没开始 `recv`，或者已经 drop 掉 Receiver），不能当作错误 panic，
+/// 否则整个监听任务会在毫无征兆的情况下挂掉。
+fn broadcast_signal(sender: &Sender<nix::sys::signal::Signal>, signal: nix::sys::signal::Signal) {
+    if sender.send(signal).is_err() {
+        debug!("no alive signal receiver, drop {signal}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn invalid_instruction_is_reported() {
+        assert!(matches!(
+            send_signal_by_instruction("no-such-signal", std::process::id()),
+            Err(SignalError::InvalidInstruction(_))
+        ));
+    }
+
+    #[test]
+    fn instruction_is_case_insensitive() {
+        // "CONT" 发给自身进程不会造成副作用，只验证大小写处理与发送链路可用
+        assert!(send_signal_by_instruction("CONT", std::process::id()).is_ok());
+    }
 }

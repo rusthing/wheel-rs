@@ -4,8 +4,8 @@
 //! 它会将单个字符串转换为只有一个元素的向量，或将字符串数组转换为向量。
 
 use serde::{
-    de::{self, Visitor}, Deserializer, Serialize,
-    Serializer,
+    Deserializer, Serialize, Serializer,
+    de::{self, Visitor},
 };
 use std::fmt;
 

@@ -26,7 +26,7 @@ use std::fmt;
 ///     tags: Vec<String>,
 /// }
 /// ```
-pub fn serialize<S>(vec: &Vec<String>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(vec: &[String], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -53,9 +53,8 @@ where
 ///
 /// ## 示例
 /// ```rust
-/// use serde::{Serialize, Deserialize};
-/// use serde_json;
-/// 
+/// use serde::{Deserialize, Serialize};
+///
 /// #[derive(Serialize, Deserialize)]
 /// struct Example {
 ///     #[serde(

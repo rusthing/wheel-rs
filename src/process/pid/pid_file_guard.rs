@@ -4,9 +4,9 @@
 //! 在对象被销毁时会自动清理对应的 PID 文件，避免残留文件占用资源。
 
 use crate::process::pid::pid_utils::delete_pid_file_if_my_process;
-use crate::process::{write_pid, PidError};
-use tracing::warn;
+use crate::process::{PidError, write_pid};
 use std::path::PathBuf;
+use tracing::warn;
 
 /// # PID 文件守卫
 ///
@@ -43,7 +43,7 @@ impl PidFileGuard {
     /// - 失败时返回 `Err(PidError)`，表示无法创建或写入 PID 文件。
     ///
     /// ## 示例
-    /// ```rust
+    /// ```no_run
     /// use std::path::PathBuf;
     /// use wheel_rs::process::PidFileGuard;
     ///

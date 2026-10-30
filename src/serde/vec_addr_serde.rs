@@ -20,7 +20,7 @@ use std::fmt;
 ///
 /// ## 返回值
 /// 返回序列化结果，序列化失败时返回 `S::Error`。
-pub fn serialize<S>(vec: &Vec<Addr>, serializer: S) -> Result<S::Ok, S::Error>
+pub fn serialize<S>(vec: &[Addr], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -71,12 +71,12 @@ impl<'de> Visitor<'de> for AddrVecVisitor {
     where
         E: de::Error,
     {
-        Ok(value
+        value
             .split(',')
-            .map(|s| s.trim().to_string())
+            .map(|s| s.trim())
             .filter(|s| !s.is_empty())
-            .map(|s| Addr::from_str(&s).map_err(|e| de::Error::custom(format!("{:?}", e))))
-            .collect::<Result<Vec<_>, _>>()?)
+            .map(|s| Addr::from_str(s).map_err(|e| de::Error::custom(e.to_string())))
+            .collect()
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -89,8 +89,7 @@ impl<'de> Visitor<'de> for AddrVecVisitor {
             if element.is_empty() {
                 continue;
             }
-            let addr =
-                Addr::from_str(&element).map_err(|e| de::Error::custom(format!("{:?}", e)))?;
+            let addr = Addr::from_str(&element).map_err(|e| de::Error::custom(e.to_string()))?;
             vec.push(addr);
         }
         Ok(vec)

@@ -169,7 +169,7 @@ fn insert<V>(node: &mut Node<V>, key: &str, value: V) -> bool {
     let matched = node
         .children
         .get(pos)
-        .is_some_and(|c| c.key.chars().next() == Some(first));
+        .is_some_and(|c| c.key.starts_with(first));
 
     if !matched {
         // 无同首字符兄弟：直接在有序位置插入新叶子
@@ -234,7 +234,7 @@ fn get<'a, V>(node: &'a Node<V>, key: &str) -> Option<&'a V> {
         .children
         .partition_point(|c| c.key.chars().next().unwrap() < first);
     let child = node.children.get(pos)?;
-    if child.key.chars().next() != Some(first) {
+    if !child.key.starts_with(first) {
         return None;
     }
     let l = lcp(&child.key, key);
@@ -256,7 +256,7 @@ fn get_mut<'a, V>(node: &'a mut Node<V>, key: &str) -> Option<&'a mut V> {
         .children
         .partition_point(|c| c.key.chars().next().unwrap() < first);
     let child = node.children.get_mut(pos)?;
-    if child.key.chars().next() != Some(first) {
+    if !child.key.starts_with(first) {
         return None;
     }
     let l = lcp(&child.key, key);
@@ -284,7 +284,7 @@ fn collect_prefix<'a, V>(node: &'a Node<V>, prefix: &str, out: &mut Vec<&'a V>) 
     let Some(child) = node.children.get(pos) else {
         return;
     };
-    if child.key.chars().next() != Some(first) {
+    if !child.key.starts_with(first) {
         return;
     }
 

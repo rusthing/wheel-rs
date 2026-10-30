@@ -6,6 +6,8 @@
 //! - [duration_option_option_serde] - 为 `Option<Option<Duration>>` 提供自定义序列化
 //! - [duration_option_serde] - 为 `Option<Duration>` 提供自定义序列化
 //! - [duration_serde] - 为 `Duration` 提供自定义序列化
+//! - [ipnet_option_serde] - 为 `Option<IpNet>` 提供自定义序列化
+//! - [ipnet_serde] - 为 `IpNet` 提供自定义序列化
 //! - [log_filter_option_serde] - 为 `Option<LevelFilter>` 提供自定义序列化
 //! - [log_filter_serde] - 为 `LevelFilter` 提供自定义序列化
 //! - [option_option_serde] - 为 `Option<Option<T>>` 提供自定义序列化

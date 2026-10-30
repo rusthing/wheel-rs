@@ -8,12 +8,12 @@
 //! - 杀死进程
 use crate::cmd::cmd_error::CmdError;
 use bytes::Bytes;
-use tracing::{debug, error, trace, warn};
 use std::process::Stdio;
 use tokio::io::{AsyncReadExt, BufReader};
 use tokio::process::{Child, ChildStdout, Command};
 use tokio::sync::broadcast::Sender;
 use tokio::sync::oneshot;
+use tracing::{debug, error, trace, warn};
 
 /// # 执行外部命令进程
 ///
@@ -26,7 +26,7 @@ use tokio::sync::oneshot;
 /// * `cmd` - 要执行的命令名称
 /// * `args` - 命令参数切片
 /// * `data_sender` - 用于发送命令输出数据的广播发送者
-/// * `process_exit_sender` - 用于发送进程结束信号的通道发送者
+/// * `process_exit_sender` - 用于发送「输出结束」信号的通道发送者
 /// * `read_buffer_size` - 读取缓冲区大小
 ///
 /// ## 返回值
@@ -61,7 +61,7 @@ pub fn execute(
         .map_err(CmdError::Execute)?; // 将可能的错误转换为CmdError类型
     debug!("command execute started: {}", cmd);
     // 获取标准输出
-    let stdout = child.stdout.take().ok_or_else(CmdError::TakeStdout)?;
+    let stdout = child.stdout.take().ok_or(CmdError::TakeStdout)?;
 
     // 异步读取输出
     tokio::spawn(read_stdout(
@@ -76,18 +76,23 @@ pub fn execute(
 
 /// # 读取子进程的输出
 ///
-/// 异步读取子进程的输出并转发给指定的发送者。
+/// 异步读取子进程的输出并转发给指定的发送者；读到 EOF（stdout 关闭）后向
+/// `process_exit_sender` 发送一次信号并结束任务。
+///
+/// 注意：这里的「结束信号」以 **stdout 关闭** 为准，而不是进程状态变化。
+/// 绝大多数命令退出时 stdout 随之关闭，但如果子进程把 stdout 交给了后代进程
+/// 继承，信号会相应延后。
 ///
 /// ## 参数
 ///
 /// * `stdout` - 子进程的输出流
 /// * `data_sender` - 用于转发输出数据的广播发送者
-/// * `process_exit_sender` - 用于发送进程结束信号的通道发送者
+/// * `process_exit_sender` - 用于发送「输出结束」信号的通道发送者
 /// * `read_buffer_size` - 读取缓冲区大小
 ///
 /// ## 返回值
 ///
-/// 无返回值，因为该函数是异步的。
+/// 无返回值；该任务在 stdout 关闭或读取出错时自行结束。
 async fn read_stdout(
     stdout: ChildStdout,
     data_sender: Sender<Bytes>,
@@ -151,8 +156,8 @@ pub fn is_process_alive(child: &mut Child) -> Result<bool, CmdError> {
 
 /// # 杀死进程
 ///
-/// 强制终止指定的子进程并等待其完全退出。调用此函数会获取 `Child` 实例
-/// 的所有权，并在完成后释放该资源。
+/// 强制终止指定的子进程并等待其完全退出（回收僵尸进程）。调用此函数会获取
+/// `Child` 实例的所有权，并在完成后释放该资源。
 ///
 /// ## 参数
 ///
@@ -160,18 +165,24 @@ pub fn is_process_alive(child: &mut Child) -> Result<bool, CmdError> {
 ///
 /// ## 返回值
 ///
-/// 如果成功杀死进程则返回 `Ok(())`，否则返回包含错误信息的 Result。
+/// 如果成功杀死并回收进程则返回 `Ok(())`，否则返回 [`CmdError::Kill`]。
 ///
 /// ## 错误处理
 ///
-/// 如果杀死进程过程中发生错误，则返回 [CmdError::Kill] 错误。
+/// 如果杀死进程或等待其退出过程中发生错误，则返回 [CmdError::Kill] 错误。
 pub async fn kill_process(mut child: Child) -> Result<(), CmdError> {
-    debug!(
-        "killing process: {}",
-        child.id().ok_or_else(|| CmdError::EmptyId)?
-    );
-    Ok(child.kill().await.map_err(|e| {
+    let pid = child.id();
+    debug!("killing process: {pid:?}");
+    // 注意：这里不因 `id()` 为 None 而报错——子进程已经退出时 `id()` 就是 None，
+    // 此时 `kill` + `wait` 仍然是安全的收尾动作。
+    child.kill().await.map_err(|e| {
         error!("kill process fail: {:#}", e);
         CmdError::Kill(e)
-    })?)
+    })?;
+    // 必须 wait：只 kill 不回收会留下僵尸进程，且 `Child` 的退出状态永远拿不到
+    child.wait().await.map_err(|e| {
+        error!("wait process exit fail: {:#}", e);
+        CmdError::Kill(e)
+    })?;
+    Ok(())
 }

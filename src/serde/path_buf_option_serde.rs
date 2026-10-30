@@ -2,10 +2,9 @@
 //!
 //! 此模块提供了一系列函数来处理可选路径缓冲区类型的序列化和反序列化，
 //! 支持将字符串转换为 `Option<PathBuf>`，以及将 `Option<PathBuf>` 序列化为适当的 JSON 格式。
-//!
 
 use crate::serde::path_buf_serde::PathBufVisitor;
-use serde::{de::Visitor, Deserializer, Serializer};
+use serde::{Deserializer, Serializer, de::Visitor};
 use std::fmt;
 use std::path::PathBuf;
 

@@ -30,29 +30,40 @@ use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
 use tokio::sync::watch;
-use tokio::time::{sleep_until, Instant};
+use tokio::time::{Instant, sleep_until};
 use tracing::{error, info, warn};
+
+/// 去抖动定时器「未激活」时的截止时间偏移：一年。
+///
+/// 这里不能直接用 `Duration::from_millis(u64::MAX)` 之类的极值：`Instant + Duration`
+/// 在溢出时按平台不同可能直接 panic，而「永不触发」只需要一个远大于任何
+/// 去抖动窗口、又不会越过 `Instant` 可表示范围的偏移。
+const IDLE_DEADLINE: Duration = Duration::from_secs(365 * 24 * 60 * 60);
 
 /// # 获取文件名的扩展名
 ///
-/// 该函数从给定的文件名中提取扩展名部分。扩展名被定义为文件名中最后一个点（`.`）之后的部分，
-/// 并且会被转换为小写形式。
+/// 语义与 [`std::path::Path::extension`] 一致：扩展名是文件名中最后一个点（`.`）之后的部分，
+/// 返回时统一转为小写。
 ///
 /// ## 参数
 ///
-/// * `file_name` - 包含文件名的字符串切片引用
+/// * `file_name` - 文件名或路径字符串切片
 ///
 /// ## 返回值
 ///
-/// 返回小写化的扩展名（不含点号）。文件名不包含点号（`.`）时返回 `None`。
+/// 返回小写化的扩展名（不含点号）；下列情况返回 `None`：
+/// - 没有文件名部分（`""`、`"/"`、`"dir/"`）
+/// - 文件名以 `.` 开头且不含其它 `.`（`".gitignore"` 是隐藏文件，不是「扩展名为 gitignore」）
+/// - 文件名中不含 `.`（`"README"`）
 ///
-/// 几种边界输入的实测行为：
+/// 几种边界输入的行为：
 ///
 /// | 输入 | 返回 |
 /// | --- | --- |
 /// | `"example.TXT"` | `Some("txt")` |
+/// | `"a.b.c"` | `Some("c")` |
 /// | `"file_without_extension"` | `None` |
-/// | `".gitignore"` | `Some("gitignore")` |
+/// | `".gitignore"` | `None` |
 /// | `"trailing."` | `Some("")` |
 /// | `""` | `None` |
 ///
@@ -65,15 +76,14 @@ use tracing::{error, info, warn};
 /// assert_eq!(get_file_ext("document.pdf").as_deref(), Some("pdf"));
 /// assert_eq!(get_file_ext("a.b.c").as_deref(), Some("c"));
 /// assert_eq!(get_file_ext("README"), None);
+/// // 隐藏文件没有扩展名
+/// assert_eq!(get_file_ext(".gitignore"), None);
 /// ```
 pub fn get_file_ext(file_name: &str) -> Option<String> {
-    if !file_name.contains('.') {
-        return None;
-    }
-    file_name
-        .split('.')
-        .last()
-        .map(|s| s.to_string().to_lowercase())
+    // 交给 std 判定「什么算扩展名」：它已经处理了隐藏文件、结尾点、路径分隔符等边界
+    Path::new(file_name)
+        .extension()
+        .map(|ext| ext.to_string_lossy().to_lowercase())
 }
 
 /// # 计算指定文件的 SHA256 哈希值
@@ -100,8 +110,7 @@ pub fn get_file_ext(file_name: &str) -> Option<String> {
 /// if let Ok(hash) = calc_hash_of_file(Path::new("test.txt")) {
 ///     println!("文件哈希值: {}", hash);
 /// }
-///```
-
+/// ```
 pub fn calc_hash_of_file(path: &Path) -> Result<String, io::Error> {
     let mut file = File::open(path)?;
     let mut hasher = sha2::Sha256::new();
@@ -149,22 +158,16 @@ pub fn calc_hash_of_file(path: &Path) -> Result<String, io::Error> {
 /// assert!(!is_cross_device_error(&invalid));
 /// ```
 pub fn is_cross_device_error(err: &io::Error) -> bool {
-    match err.kind() {
-        // 在 Unix 系统上，跨设备错误通常表现为 CrossesDevices
-        #[cfg(unix)]
-        io::ErrorKind::CrossesDevices => true,
-        #[cfg(unix)]
-        _ => false,
-        // 在 Windows 系统上，跨设备错误可能表现为 Other 或其他类型
-        #[cfg(windows)]
-        _ => {
-            // Windows 上的跨设备错误通常包含特定的错误信息
-            if let Some(raw_os_error) = err.raw_os_error() {
-                raw_os_error == 17 // ERROR_NOT_SAME_DEVICE 错误码
-            } else {
-                false
-            }
-        }
+    #[cfg(unix)]
+    {
+        // EXDEV 是唯一来源；同时看 ErrorKind 与原始错误码，避免某些封装层
+        // 只保留了 raw_os_error 而没映射到 CrossesDevices。
+        err.kind() == io::ErrorKind::CrossesDevices || err.raw_os_error() == Some(libc::EXDEV)
+    }
+    #[cfg(windows)]
+    {
+        // ERROR_NOT_SAME_DEVICE = 17
+        err.raw_os_error() == Some(17)
     }
 }
 
@@ -191,33 +194,63 @@ impl Drop for FileWatcher {
 impl FileWatcher {
     /// # 创建文件监听器
     ///
-    /// 启动去抖动任务并开始监听给定文件。只关注修改（modify）与删除（remove）事件，
+    /// 内部完成三件事：创建 `notify` watcher、启动去抖动任务、启动事件消费任务
+    /// （把去抖动后的事件交给 `on_change`）。只关注修改（modify）与删除（remove）事件，
     /// 其余事件会被直接忽略。监听为非递归模式（`RecursiveMode::NonRecursive`）。
     ///
     /// 需在 tokio 运行时中调用，因为内部使用 `tokio::spawn`。
+    ///
+    /// 相比把「事件发送端 + 消费任务句柄」交给调用方自己拼装，这里把两者都收在内部，
+    /// 避免句柄与通道配错（drop 时 abort 掉别人的任务）。
     ///
     /// ## 参数
     ///
     /// * `files` - 要监听的文件路径列表
     /// * `debounce_delay` - 去抖动延迟；该时间窗内的连续变更只会上报最后一次
-    /// * `file_changed_tx` - 去抖动后事件的发送端，由调用方负责消费
-    /// * `watch_join_handle` - 消费事件的任务句柄，drop 时会被 abort
+    /// * `on_change` - 变更回调；返回的 `Err` 只记 warn 日志，不会中断监听
     ///
     /// ## 返回值
     ///
     /// * `Ok(FileWatcher)` - 监听已启动
     /// * `Err(notify::Error)` - watcher 创建失败或某个路径无法监听
-    pub fn new(
-        files: &Vec<String>,
+    pub fn new<F, Fut>(
+        files: &[String],
         debounce_delay: Duration,
-        file_changed_tx: watch::Sender<Event>,
-        watch_join_handle: tokio::task::JoinHandle<()>,
-    ) -> notify::Result<Self> {
+        mut on_change: F,
+    ) -> notify::Result<Self>
+    where
+        F: FnMut(Event) -> Fut + Send + 'static,
+        Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
+    {
+        let (file_changed_tx, mut file_changed_rx) = watch::channel(Event::default());
+
+        // 事件消费任务：把去抖动后的事件交给回调
+        let watch_join_handle = tokio::spawn(async move {
+            loop {
+                match file_changed_rx.changed().await {
+                    Ok(_) => {
+                        let event = file_changed_rx.borrow().clone();
+                        info!(
+                            "watch task received event, calling on_change: {:?}",
+                            event.paths
+                        );
+                        if let Err(e) = on_change(event).await {
+                            warn!("handle file change error: {e:?}");
+                        }
+                    }
+                    Err(err) => {
+                        error!("watch file error: {:?}", err);
+                        break;
+                    }
+                }
+            }
+        });
+
         let (event_tx, mut event_rx) = watch::channel(Event::default());
 
         // 去抖动任务
         let debounce_join_handle = tokio::spawn(async move {
-            let sleep = sleep_until(Instant::now() + Duration::from_millis(u64::MAX)); // 初始设置为永不触发
+            let sleep = sleep_until(Instant::now() + IDLE_DEADLINE); // 初始为「永不触发」
             let mut latest_event = Event::default(); // 存储最新事件
             // 把局部变量放到栈上的固定位置，否则在select!中无法保证其内存位置不变
             tokio::pin!(sleep);
@@ -242,8 +275,8 @@ impl FileWatcher {
                     _ = &mut sleep => {
                         info!("debounce fired, forwarding event: {:?}", latest_event.paths);
                         let _ = file_changed_tx.send(latest_event.clone());
-                        // 重新设置为永不触发，直到下次监听到变化
-                        sleep.as_mut().reset(Instant::now() + Duration::from_millis(u64::MAX));
+                        // 重新设置为「永不触发」，直到下次监听到变化
+                        sleep.as_mut().reset(Instant::now() + IDLE_DEADLINE);
                     }
                 }
             }
@@ -251,22 +284,24 @@ impl FileWatcher {
 
         // 创建 watcher，过滤非修改和删除事件，发送最新事件到 event_tx
         info!("file watcher start watching: {:?}", files);
-        let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| {
-            match res {
+        let mut watcher =
+            notify::recommended_watcher(move |res: notify::Result<Event>| match res {
                 Ok(event) => {
-                    info!("notify raw event: kind={:?}, paths={:?}", event.kind, event.paths);
+                    info!(
+                        "notify raw event: kind={:?}, paths={:?}",
+                        event.kind, event.paths
+                    );
                     if !(event.kind.is_modify() || event.kind.is_remove()) {
                         return;
                     }
-                    if event.clone().paths.into_iter().next().is_some() {
+                    if !event.paths.is_empty() {
                         let _ = event_tx.send(event);
                     }
                 }
                 Err(e) => {
                     error!("notify watcher error: {:?}", e);
                 }
-            }
-        })?;
+            })?;
 
         for file in files {
             info!("watching file: {}", file);
@@ -284,7 +319,7 @@ impl FileWatcher {
 /// # 监听文件变更并执行回调（推荐入口）
 ///
 /// 对给定文件启动监听，变更事件经 `debounce_delay` 去抖动后触发 `on_change` 回调。
-/// 相比直接使用 [`FileWatcher::new`]，此函数已内置事件消费任务，调用方只需提供回调。
+/// 行为与 [`FileWatcher::new`] 完全一致，区别只在于 `files` 收 `Vec<String>`（可直接传拥有所有权的列表）。
 ///
 /// 需在 tokio 运行时中调用。回调返回的 `Err` 不会中断监听，仅记录 warn 日志后继续。
 ///
@@ -321,37 +356,56 @@ impl FileWatcher {
 pub fn watch_file_changed<F, Fut>(
     files: Vec<String>,
     debounce_delay: Duration,
-    mut on_change: F,
+    on_change: F,
 ) -> notify::Result<FileWatcher>
 where
     F: FnMut(Event) -> Fut + Send + 'static,
     Fut: Future<Output = anyhow::Result<()>> + Send + 'static,
 {
-    let (file_changed_tx, mut file_changed_rx) = watch::channel(Event::default());
-    let files_clone = files.clone();
-    let watch_join_handle = tokio::spawn(async move {
-        info!("watch file changed: {:?}", files_clone);
-        loop {
-            match file_changed_rx.changed().await {
-                Ok(_) => {
-                    let event = file_changed_rx.borrow().clone();
-                    info!("watch task received event, calling on_change: {:?}", event.paths);
-                    if let Err(e) = on_change(event).await {
-                        warn!("handle file change error: {e:?}");
-                    }
-                }
-                Err(err) => {
-                    error!("watch file error: {:?}", err);
-                    break;
-                }
-            }
+    FileWatcher::new(&files, debounce_delay, on_change)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn file_ext_matches_documented_table() {
+        assert_eq!(get_file_ext("example.TXT").as_deref(), Some("txt"));
+        assert_eq!(get_file_ext("document.pdf").as_deref(), Some("pdf"));
+        assert_eq!(get_file_ext("a.b.c").as_deref(), Some("c"));
+        assert_eq!(get_file_ext("file_without_extension"), None);
+        // 隐藏文件按 std 语义没有扩展名
+        assert_eq!(get_file_ext(".gitignore"), None);
+        assert_eq!(get_file_ext("trailing.").as_deref(), Some(""));
+        assert_eq!(get_file_ext(""), None);
+        // 路径形式：只看最后一段
+        assert_eq!(get_file_ext("/tmp/dir/photo.JPG").as_deref(), Some("jpg"));
+        assert_eq!(get_file_ext("dir/"), None);
+    }
+
+    #[test]
+    fn cross_device_error_detection() {
+        #[cfg(unix)]
+        {
+            let exdev = io::Error::from_raw_os_error(libc::EXDEV);
+            assert!(is_cross_device_error(&exdev));
         }
-    });
-    let file_watcher = FileWatcher::new(
-        files.as_ref(),
-        debounce_delay,
-        file_changed_tx.clone(),
-        watch_join_handle,
-    );
-    file_watcher
+        let other = io::Error::new(io::ErrorKind::InvalidInput, "bad input");
+        assert!(!is_cross_device_error(&other));
+    }
+
+    #[test]
+    fn hash_of_temp_file() {
+        let dir = std::env::temp_dir();
+        let path = dir.join("wheel_rs_hash_test.txt");
+        std::fs::write(&path, b"hello").unwrap();
+        let hash = calc_hash_of_file(&path).unwrap();
+        // sha256("hello")
+        assert_eq!(
+            hash,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
+        std::fs::remove_file(&path).ok();
+    }
 }

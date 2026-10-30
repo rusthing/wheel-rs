@@ -3,7 +3,7 @@
 //! 提供进程终止、状态检查等核心功能的实用工具函数。
 //! 该模块封装了底层系统调用，简化了进程管理操作，适用于需要监控或控制外部进程的应用场景。
 
-use crate::process::{send_signal_by_instruction, ProcessError};
+use crate::process::{ProcessError, send_signal_by_instruction};
 use libc::pid_t;
 use std::io;
 use std::time::Duration;
@@ -61,7 +61,7 @@ pub async fn terminate_process(
 /// ## 返回值
 ///
 /// * `Ok(())` - 进程成功退出。
-/// * `Err(ProcessExitWaitTimeout)` - 等待超时。
+/// * `Err(ProcessError::TerminateProcessTimeout)` - 等待超时。
 ///
 /// ## 性能提示
 /// - `retry_interval` 不宜过短，以免频繁调用系统API造成性能损耗。
@@ -71,13 +71,15 @@ async fn wait_for_process_exit(
     wait_timeout: Duration,
     retry_interval: Duration,
 ) -> Result<(), ProcessError> {
-    timeout(wait_timeout, async move {
-        Ok(while check_process(pid)? {
+    let wait = async {
+        while check_process(pid)? {
             tokio::time::sleep(retry_interval).await;
-        })
-    })
-    .await
-    .map_err(|_| ProcessError::TerminateProcessTimeout(pid))?
+        }
+        Ok::<(), ProcessError>(())
+    };
+    timeout(wait_timeout, wait)
+        .await
+        .map_err(|_| ProcessError::TerminateProcessTimeout(pid))?
 }
 
 /// # 检查进程是否存在
@@ -117,5 +119,32 @@ pub fn check_process(pid: u32) -> Result<bool, ProcessError> {
                 None => Err(ProcessError::CheckProcess("Unknown error".to_string())),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn current_process_exists() {
+        assert!(check_process(std::process::id()).unwrap());
+    }
+
+    #[test]
+    fn nonexistent_process_is_reported_as_gone() {
+        // 一个几乎不可能存在的 PID：PID 上限通常远小于这个值
+        let pid = 0x7FFF_FFF0;
+        assert!(!check_process(pid).unwrap_or(false));
+    }
+
+    #[tokio::test]
+    async fn wait_times_out_for_alive_process() {
+        let pid = std::process::id();
+        // 本进程必然存活，等待必然超时
+        let err = wait_for_process_exit(pid, Duration::from_millis(50), Duration::from_millis(10))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ProcessError::TerminateProcessTimeout(p) if p == pid));
     }
 }
