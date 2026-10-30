@@ -1,6 +1,6 @@
 [package]
 name = "wheel-rs"
-version = "1.13.0"
+version = "1.14.0"
 edition = "2024"
 # edition 2024 需要 1.85+；本库用到的 let-chains 需要 1.88+
 rust-version = "1.88"
