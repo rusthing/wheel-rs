@@ -16,6 +16,7 @@ A Rust utility library providing various helpful utilities for common tasks.
 - **Network Utilities**: IP network ordering and local IP discovery
 - **Trie**: Compressed prefix tree (Patricia trie)
 - **String Utilities**: Camel case splitting, `snake_case` → `PascalCase`
+- **Validation & Masking**: Regex validation for email / mobile / ID card / USCC / bank card / tree codes, and display masking for the same fields
 - **Serialization**: Custom serde implementations for `Duration`, `IpNet`, `PathBuf`, `LevelFilter`, `Rotation`, `u64`, `Addr`, `Urn`, `Regex` and their `Option` / `Vec` variants
 
 ## Modules
@@ -64,6 +65,17 @@ A Rust utility library providing various helpful utilities for common tasks.
 ### `str_utils`
 - `split_camel_case`: Split `helloWorld` / `XMLParser` into words
 - `snake_to_pascal`: `deleted_at` → `DeletedAt`
+
+### `regex_utils`
+- `pattern::*`: Anchored regex sources (`EMAIL`, `MOBILE_CN`, `LANDLINE_CN`, `ID_CARD_CN`, `USCC`, `BANK_CARD`, `URL_HTTP`, `TREE_CODE`, `UUID`, `ACCOUNT_NAME`, `CODE`, `CHINESE_NAME`, `PASSWORD_CHARSET`, `IPV4`) — feed them to DTO validation directly
+- `is_email` / `is_mobile_cn` / `is_landline_cn` / `is_id_card_cn` / `is_uscc` / `is_bank_card`: Same rules plus what a regex cannot express (checksums, RFC length limits)
+- `is_url_http` / `is_tree_code` / `is_uuid` / `is_account_name` / `is_code` / `is_chinese_name` / `is_password`
+- `is_ip` / `is_ipv4` / `is_ipv6`: Parsed by `std::net`, stricter than any regex
+
+### `mask_utils`
+- `mask` / `mask_with`: Keep N leading and M trailing characters, mask the rest (char-based, CJK safe)
+- `mask_mobile` / `mask_id_card` / `mask_bank_card` / `mask_email` / `mask_name` / `mask_ip`: Display-only masking
+- `mask_secret`: Whole-string masking for passwords / salts / tokens — fixed width, length never leaks
 
 ### `serde`
 Custom serialization/deserialization, used via `#[serde(with = "...")]`, e.g.:

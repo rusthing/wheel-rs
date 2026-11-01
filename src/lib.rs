@@ -1,7 +1,7 @@
 //! # wheel-rs
 //!
-//! 一个 Rust 工具库：文件/时间/DNS/网络地址处理、命令行与进程管理、压缩前缀树，
-//! 以及一组自定义 serde 实现。
+//! 一个 Rust 工具库：文件/时间/DNS/网络地址处理、命令行与进程管理、压缩前缀树、
+//! 常用格式的校验与脱敏，以及一组自定义 serde 实现。
 //!
 //! ## 功能特性
 //!
@@ -11,6 +11,9 @@
 //! - **DNS / 网络工具**: 主机名与 `host[:port]` 解析、本机 IP 获取、网段比较
 //! - **命令与进程**: 同步/异步执行外部命令、PID 文件管理、进程存活检查与信号发送
 //! - **数据结构**: 压缩前缀树（[`trie`]）、URN 匹配
+//! - **校验与脱敏**: 邮箱/手机号/身份证号等常用格式的校验（[`regex_utils`]），
+//!   手机号、身份证号、邮箱、姓名、银行卡号的展示用脱敏，以及密码/盐/令牌类的
+//!   整串遮蔽（[`mask_utils`]）
 //! - **序列化工具**: 为 `std::time::Duration`、`u64`、`IpNet`、`PathBuf` 等类型
 //!   提供自定义序列化和反序列化支持
 //!
@@ -23,6 +26,8 @@
 //! - [`config_utils`] — 配置差异比较工具
 //! - [`ipnet_utils`] — IP 网络比较与精确性判断工具
 //! - [`str_utils`] — 字符串格式转换工具
+//! - [`regex_utils`] — 常用字段格式的正则校验（邮箱、手机号、身份证号等）
+//! - [`mask_utils`] — 手机号、身份证号、邮箱、姓名等展示用脱敏，密码类整串遮蔽
 //! - [`trie`] — 压缩前缀树（Patricia Trie）
 //! - [`urn_utils`] — URN 解析与表示工具
 //! - [`cmd`] — 命令行执行工具
@@ -35,7 +40,9 @@ pub mod config_utils;
 pub mod dns_utils;
 pub mod file_utils;
 pub mod ipnet_utils;
+pub mod mask_utils;
 pub mod process;
+pub mod regex_utils;
 pub mod serde;
 pub mod str_utils;
 pub mod time_utils;

@@ -16,6 +16,8 @@
 - **网络工具**：IP 网段排序、本机 IP 获取
 - **前缀树**：压缩前缀树（Patricia Trie）
 - **字符串工具**：驼峰拆分、`snake_case` 转 `PascalCase`
+- **校验与脱敏**：邮箱 / 手机号 / 身份证号 / 统一社会信用代码 / 银行卡号 / 树编码的正则校验，
+  以及同名字段的展示用脱敏
 - **序列化工具**：为 `Duration`、`IpNet`、`PathBuf`、`LevelFilter`、`Rotation`、`u64`、`Addr`、`Urn`、`Regex` 及其 `Option` / `Vec` 变体提供自定义 serde 实现
 
 ## 模块说明
@@ -64,6 +66,20 @@
 ### `str_utils` 字符串工具模块
 - `split_camel_case`：拆分 `helloWorld`、`XMLParser` 等驼峰字符串
 - `snake_to_pascal`：`deleted_at` → `DeletedAt`
+
+### `regex_utils` 正则校验模块
+- `pattern::*`：带锚点的正则源串（`EMAIL`、`MOBILE_CN`、`LANDLINE_CN`、`ID_CARD_CN`、`USCC`、
+  `BANK_CARD`、`URL_HTTP`、`TREE_CODE`、`UUID`、`ACCOUNT_NAME`、`CODE`、`CHINESE_NAME`、
+  `PASSWORD_CHARSET`、`IPV4`），直接交给 DTO 校验
+- `is_email` / `is_mobile_cn` / `is_landline_cn` / `is_id_card_cn` / `is_uscc` / `is_bank_card`：
+  同样的规则，外加正则表达不了的判断（校验位、RFC 长度上限）
+- `is_url_http` / `is_tree_code` / `is_uuid` / `is_account_name` / `is_code` / `is_chinese_name` / `is_password`
+- `is_ip` / `is_ipv4` / `is_ipv6`：用 `std::net` 解析，比正则严格
+
+### `mask_utils` 脱敏模块
+- `mask` / `mask_with`：保留前 N 与后 M 个字符，中间逐字符遮蔽（按 `char` 处理，中文安全）
+- `mask_mobile` / `mask_id_card` / `mask_bank_card` / `mask_email` / `mask_name` / `mask_ip`：展示用脱敏
+- `mask_secret`：密码 / 盐 / 令牌类整串遮蔽，定宽输出，不暴露原文长度
 
 ### `serde` 序列化模块
 通过 `#[serde(with = "...")]` 使用，例如：
