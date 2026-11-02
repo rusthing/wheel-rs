@@ -14,6 +14,7 @@
 //! - **校验与脱敏**: 邮箱/手机号/身份证号等常用格式的校验（[`regex_utils`]），
 //!   手机号、身份证号、邮箱、姓名、银行卡号的展示用脱敏，以及密码/盐/令牌类的
 //!   整串遮蔽（[`mask_utils`]）
+//! - **摘要**: 国密 SM3 杂凑算法（[`sm3_utils`]），口令两级摘要与文件完整性校验用
 //! - **序列化工具**: 为 `std::time::Duration`、`u64`、`IpNet`、`PathBuf` 等类型
 //!   提供自定义序列化和反序列化支持
 //!
@@ -28,6 +29,7 @@
 //! - [`str_utils`] — 字符串格式转换工具
 //! - [`regex_utils`] — 常用字段格式的正则校验（邮箱、手机号、身份证号等）
 //! - [`mask_utils`] — 手机号、身份证号、邮箱、姓名等展示用脱敏，密码类整串遮蔽
+//! - [`sm3_utils`] — 国密 SM3 摘要算法
 //! - [`trie`] — 压缩前缀树（Patricia Trie）
 //! - [`urn_utils`] — URN 解析与表示工具
 //! - [`cmd`] — 命令行执行工具
@@ -44,7 +46,9 @@ pub mod mask_utils;
 pub mod process;
 pub mod regex_utils;
 pub mod serde;
+pub mod sm3_utils;
 pub mod str_utils;
 pub mod time_utils;
+pub mod tree_utils;
 pub mod trie;
 pub mod urn_utils;

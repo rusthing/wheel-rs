@@ -24,6 +24,7 @@
 //! | [`is_id_card_cn`] | 18 位身份证：结构 + 出生日期真实存在且不在未来 + ISO 7064 校验位 | 否 |
 //! | [`is_uscc`] | 18 位统一社会信用代码：字符集 + GB 32100 模 31 校验位 | 否 |
 //! | [`is_bank_card`] | 银行卡号 16~19 位数字 + Luhn 校验 | 否 |
+//! | [`is_plate_cn`] | 机动车号牌：省份简称 + 发牌机关字母 + 序号（7 位普通 / 8 位新能源 / 带后缀），只认大写 | 否，序号需含数字 |
 //! | [`is_url_http`] | `http://` 或 `https://` 开头的绝对 URL，不含空白 | 是 |
 //! | [`is_tree_code`] | 树编码：每层固定 3 位数字，1~10 层，总长 3/6/…/30 | 是 |
 //! | [`is_uuid`] | 8-4-4-4-12 十六进制，忽略大小写 | 是 |
@@ -47,7 +48,7 @@
 //!
 //! | 标记 | 指向 | 用在 |
 //! |------|------|------|
-//! | `@check is_email` | 本模块的 `is_email` | 谓词校验：带校验位、带长度判断、解析式判断的都在这里 |
+//! | `@check is_email` | 本模块的 `is_email`（经 `robotech::api::validators::email` 适配） | 谓词校验：带校验位、带长度判断、解析式判断的都在这里 |
 //! | `@regex EMAIL` | [`pattern`] 里的 `EMAIL` | 只需要一段正则文本的场景（OpenAPI `pattern`、前端表单） |
 //!
 //! 二者的取舍：`@check` 认的是函数，比正则严（能带校验位），但要求校验框架能调 Rust
@@ -114,6 +115,30 @@ pub mod pattern {
 
     /// 银行卡号**结构**：16~19 位纯数字。Luhn 校验由 [`super::is_bank_card`] 另判。
     pub const BANK_CARD: &str = r"^\d{16,19}$";
+
+    /// 中国大陆机动车号牌（蓝牌/黄牌/新能源/挂车/教练/警用等常见形式）。
+    ///
+    /// 结构是「省份简称 + 发牌机关字母 + 序号」，序号有四种形式：
+    ///
+    /// | 形式 | 位数 | 例子 |
+    /// |------|------|------|
+    /// | 普通序号码（数字与字母混排） | 5 | `京A12345`、`粤B8F6Z2` |
+    /// | 小型新能源（`D`/`F` 打头 + 5 位数字） | 6 | `京AD12345`、`沪AF67890` |
+    /// | 大型新能源（5 位数字 + 末尾 `D`/`F`） | 6 | `京A12345D` |
+    /// | 4 位数字 + 后缀汉字 | 5 | `京A1234挂`、`沪C8888学` |
+    ///
+    /// 发牌机关字母与序号字母都排除 `I`/`O`（与车管所口径一致，避免与 `1`/`0` 混淆）。
+    /// 序号里的字母个数**不做限制**：各地对「字母不得超过 2 位」的执行尺度不一，
+    /// 新能源牌也出现过带字母的号段，收紧要冒拒真的风险，而这里只能判结构、判不了真伪。
+    ///
+    /// **只认大写**。收小写会让同一辆车以 `京A12345` 与 `京a12345` 两条记录共存，
+    /// 而库里的唯一约束（`dtw_vehicle.code`）是大小写敏感的，等于给重复留了口子；
+    /// 归一化请在上游做（输入框转大写），校验层不做隐式转换。
+    ///
+    /// **不覆盖**：军牌（`V12345`、`BA12345` 等无省份简称的形式）、使馆牌（`使123456`）、
+    /// 民航/港口等内部号牌。这些号段的规则不在民用号牌体系内，遇到时不要在业务侧放宽
+    /// 本函数，改用「不做格式校验 + 人工核对」。
+    pub const PLATE_CN: &str = r"^[京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼][A-HJ-NP-Z](?:[0-9A-HJ-NP-Z]{5}|[DF][0-9]{5}|[0-9]{5}[DF]|[0-9]{4}[挂学警领港澳试])$";
 
     /// `http://` 或 `https://` 开头的绝对 URL。
     ///
@@ -183,6 +208,7 @@ compiled!(
     ID_CARD_CN,
     USCC,
     BANK_CARD,
+    PLATE_CN,
     URL_HTTP,
     TREE_CODE,
     UUID,
@@ -393,6 +419,37 @@ pub fn is_bank_card(s: &str) -> bool {
         sum += d;
     }
     sum.is_multiple_of(10)
+}
+
+/// # 校验中国大陆机动车号牌
+///
+/// 结构见 [`pattern::PLATE_CN`]，另加一条正则不便表达（Rust 的 `regex` 没有前瞻）
+/// 的判断：**序号里至少有一位数字**。5 位全字母的序号不在发放范围内，`京ABCDEF`
+/// 这类乱填靠这一条拦下。
+///
+/// 只认合法形式，不能证明号牌真实存在——真正的有效性要靠行驶证或车管所核验。
+/// 军牌、使馆牌、内部号牌不在覆盖范围，见 [`pattern::PLATE_CN`] 的说明。
+///
+/// ## 示例
+///
+/// ```
+/// use wheel_rs::regex_utils::is_plate_cn;
+///
+/// assert!(is_plate_cn("京A12345")); // 普通
+/// assert!(is_plate_cn("粤B8F6Z2")); // 数字与字母混排
+/// assert!(is_plate_cn("京AD12345")); // 小型新能源
+/// assert!(is_plate_cn("京A12345D")); // 大型新能源
+/// assert!(is_plate_cn("沪C8888学")); // 教练车
+/// assert!(!is_plate_cn("京I12345")); // 不用字母 I
+/// assert!(!is_plate_cn("京a12345")); // 小写不算
+/// assert!(!is_plate_cn("京ABCDEF")); // 序号全是字母
+/// ```
+pub fn is_plate_cn(s: &str) -> bool {
+    if !PLATE_CN.is_match(s) {
+        return false;
+    }
+    // 跳过省份简称与发牌机关字母，剩余部分（序号 + 可选后缀）必须含数字
+    s.chars().skip(2).any(|c| c.is_ascii_digit())
 }
 
 /// # 校验 HTTP(S) URL
@@ -613,6 +670,7 @@ mod tests {
             &*ID_CARD_CN,
             &*USCC,
             &*BANK_CARD,
+            &*PLATE_CN,
             &*URL_HTTP,
             &*TREE_CODE,
             &*UUID,
@@ -636,6 +694,7 @@ mod tests {
             pattern::ID_CARD_CN,
             pattern::USCC,
             pattern::BANK_CARD,
+            pattern::PLATE_CN,
             pattern::URL_HTTP,
             pattern::TREE_CODE,
             pattern::UUID,
@@ -710,6 +769,27 @@ mod tests {
         assert!(!is_bank_card("4111111111111112")); // Luhn 不过
         assert!(!is_bank_card("411111111111111")); // 15 位
         assert!(!is_bank_card("4111 1111 1111 1111")); // 带空格
+    }
+
+    #[test]
+    fn plate_rules() {
+        assert!(is_plate_cn("京A12345")); // 普通蓝牌/黄牌
+        assert!(is_plate_cn("粤B8F6Z2")); // 数字与字母混排
+        assert!(is_plate_cn("京AD12345")); // 小型新能源：D 打头
+        assert!(is_plate_cn("沪AF67890")); // 小型新能源：F 打头
+        assert!(is_plate_cn("京A12345D")); // 大型新能源：D 收尾
+        assert!(is_plate_cn("京A1234挂")); // 挂车
+        assert!(is_plate_cn("沪C8888学")); // 教练车
+        assert!(is_plate_cn("粤Z1234港")); // 港澳入境
+        assert!(!is_plate_cn("京I12345")); // 不用字母 I
+        assert!(!is_plate_cn("京O12345")); // 不用字母 O
+        assert!(!is_plate_cn("京a12345")); // 只认大写
+        assert!(!is_plate_cn("京A1234")); // 只有 4 位数字
+        assert!(!is_plate_cn("京A123456")); // 8 位但不是新能源形式
+        assert!(!is_plate_cn("京ABCDEF")); // 序号全是字母
+        assert!(!is_plate_cn("使123456")); // 使馆牌不在覆盖范围
+        assert!(!is_plate_cn("WJ12345")); // 武警牌
+        assert!(!is_plate_cn("京A 12345")); // 带空格
     }
 
     #[test]

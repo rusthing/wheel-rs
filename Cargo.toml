@@ -25,6 +25,8 @@ serde = "1.0.229"
 notify = "8.2.0"
 humantime = "2.4.0"
 sha2 = "0.11.0"
+# 国密 SM3：RustCrypto 官方实现（与 sha2 共用 digest 0.11 的 trait）
+sm3 = "0.5.0"
 hex = "0.4.3"
 dns-lookup = "4.0.2"
 tokio = { version = "1.53.3", features = ["macros", "signal", "process", "io-util", "sync", "rt", "time"] }
