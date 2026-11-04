@@ -27,6 +27,7 @@
 //! | [`is_plate_cn`] | 机动车号牌：省份简称 + 发牌机关字母 + 序号（7 位普通 / 8 位新能源 / 带后缀），只认大写 | 否，序号需含数字 |
 //! | [`is_url_http`] | `http://` 或 `https://` 开头的绝对 URL，不含空白 | 是 |
 //! | [`is_tree_code`] | 树编码：每层固定 3 位数字，1~10 层，总长 3/6/…/30 | 是 |
+//! | [`is_wkt_polygon`] | 区域轮廓 WKT：`POLYGON`/`MULTIPOLYGON` 结构 + 环闭合 + 每环 ≥4 点 | 否，数值范围/走向/自相交另判 |
 //! | [`is_uuid`] | 8-4-4-4-12 十六进制，忽略大小写 | 是 |
 //! | [`is_account_name`] | 登录名：字母开头，字母/数字/下划线，4~32 位 | 是 |
 //! | [`is_code`] | 通用编码：字母/数字/`_`/`.`/`-`，1~50 位 | 是 |
@@ -653,6 +654,224 @@ pub fn is_ipv6(s: &str) -> bool {
 /// ```
 pub fn is_ip(s: &str) -> bool {
     is_ipv4(s) || is_ipv6(s)
+}
+
+/// # 校验区域轮廓 WKT 文本（结构级）
+///
+/// OGC Simple Features 的面几何文本：`POLYGON((外环),(内环)...)` 或
+/// `MULTIPOLYGON((...),(...))`（多部件）。只做**文本结构**判断：
+///
+/// * 关键字大小写不敏感，后面不能紧跟字母（`POLYGONX` 拒绝）
+/// * 每个**环**至少 4 个点且**首尾相同**（闭合）；外环/内环都一样判
+/// * 坐标是十进制数（可带符号、小数、指数）；`NaN`/`inf` 这类无数字的词法进不来
+/// * 不认 `EMPTY`——区域轮廓必须有实际顶点，空几何没有业务意义
+///
+/// **不管**顶点数值范围（经纬度边界由 `@range` 兜不住整串文本，属于业务侧
+/// 落库前/建缓存时的职责）、不管环的走向（外环逆时针/内环顺时针是约定不是
+/// 强制）、也不管自相交——这些要真正的几何引擎，别指望文本校验器。
+///
+/// ## 示例
+///
+/// ```
+/// use wheel_rs::regex_utils::is_wkt_polygon;
+///
+/// assert!(is_wkt_polygon("POLYGON((116.3 39.9, 116.4 39.9, 116.4 40.0, 116.3 39.9))"));
+/// // 内环（洞）
+/// assert!(is_wkt_polygon(
+///     "POLYGON((0 0, 4 0, 4 4, 0 0), (1 1, 2 1, 2 2, 1 1))"
+/// ));
+/// // 多部件
+/// assert!(is_wkt_polygon(
+///     "MULTIPOLYGON(((0 0, 1 0, 1 1, 0 0)), ((2 2, 3 2, 3 3, 2 2)))"
+/// ));
+/// // 首尾不相同（不闭合）
+/// assert!(!is_wkt_polygon("POLYGON((0 0, 1 0, 1 1, 0 1))"));
+/// // 不闭合（3 点）
+/// assert!(!is_wkt_polygon("POLYGON((0 0, 1 0, 1 1))"));
+/// assert!(!is_wkt_polygon("POINT(1 2)"));
+/// assert!(!is_wkt_polygon("POLYGON EMPTY"));
+/// assert!(!is_wkt_polygon(""));
+/// ```
+pub fn is_wkt_polygon(s: &str) -> bool {
+    wkt_polygon::is_valid(s)
+}
+
+/// WKT 面几何的递归下降解析，只服务 [`is_wkt_polygon`]
+mod wkt_polygon {
+    fn skip_ws(b: &[u8], i: &mut usize) {
+        while *i < b.len() && b[*i].is_ascii_whitespace() {
+            *i += 1;
+        }
+    }
+
+    fn expect(b: &[u8], i: &mut usize, c: u8) -> bool {
+        skip_ws(b, i);
+        if *i < b.len() && b[*i] == c {
+            *i += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// 关键字大小写不敏感；后面不能紧跟字母，防止 `POLYGONX` 蒙混过关
+    fn keyword(b: &[u8], i: &mut usize, kw: &str) -> bool {
+        skip_ws(b, i);
+        let end = *i + kw.len();
+        if end > b.len() || !b[*i..end].eq_ignore_ascii_case(kw.as_bytes()) {
+            return false;
+        }
+        if end < b.len() && b[end].is_ascii_alphabetic() {
+            return false;
+        }
+        *i = end;
+        true
+    }
+
+    /// 十进制数：符号 + 数字 [ . 数字 ] [ e 指数 ]；必须至少有一个数字
+    fn number(b: &[u8], i: &mut usize) -> Option<f64> {
+        skip_ws(b, i);
+        let start = *i;
+        if *i < b.len() && (b[*i] == b'+' || b[*i] == b'-') {
+            *i += 1;
+        }
+        let mut has_digit = false;
+        while *i < b.len() && b[*i].is_ascii_digit() {
+            *i += 1;
+            has_digit = true;
+        }
+        if *i < b.len() && b[*i] == b'.' {
+            *i += 1;
+            while *i < b.len() && b[*i].is_ascii_digit() {
+                *i += 1;
+                has_digit = true;
+            }
+        }
+        if !has_digit {
+            *i = start;
+            return None;
+        }
+        if *i < b.len() && (b[*i] == b'e' || b[*i] == b'E') {
+            let save = *i;
+            *i += 1;
+            if *i < b.len() && (b[*i] == b'+' || b[*i] == b'-') {
+                *i += 1;
+            }
+            let mut exp_digit = false;
+            while *i < b.len() && b[*i].is_ascii_digit() {
+                *i += 1;
+                exp_digit = true;
+            }
+            if !exp_digit {
+                *i = save; // 不是完整指数，回退让后续按终结符判
+            }
+        }
+        std::str::from_utf8(&b[start..*i])
+            .ok()?
+            .parse::<f64>()
+            .ok()
+    }
+
+    fn point(b: &[u8], i: &mut usize) -> Option<(f64, f64)> {
+        let x = number(b, i)?;
+        let y = number(b, i)?;
+        Some((x, y))
+    }
+
+    /// 环：`( pt (, pt)* )`，至少 4 点且首尾相同
+    fn ring(b: &[u8], i: &mut usize) -> bool {
+        if !expect(b, i, b'(') {
+            return false;
+        }
+        let (mut first, mut last, mut count) = (None::<(f64, f64)>, None::<(f64, f64)>, 0usize);
+        loop {
+            skip_ws(b, i);
+            if *i < b.len() && b[*i] == b')' {
+                *i += 1;
+                break;
+            }
+            let p = match point(b, i) {
+                Some(p) => p,
+                None => return false,
+            };
+            if first.is_none() {
+                first = Some(p);
+            }
+            last = Some(p);
+            count += 1;
+            skip_ws(b, i);
+            if *i < b.len() && b[*i] == b',' {
+                *i += 1;
+                continue;
+            }
+            if *i < b.len() && b[*i] == b')' {
+                *i += 1;
+                break;
+            }
+            return false;
+        }
+        match (first, last) {
+            (Some(f), Some(l)) => count >= 4 && f == l,
+            _ => false,
+        }
+    }
+
+    /// 多边形体：`( ring (, ring)* )`，首环外环、其余内环
+    fn polygon_body(b: &[u8], i: &mut usize) -> bool {
+        if !expect(b, i, b'(') || !ring(b, i) {
+            return false;
+        }
+        loop {
+            skip_ws(b, i);
+            match b.get(*i) {
+                Some(b',') => {
+                    *i += 1;
+                    if !ring(b, i) {
+                        return false;
+                    }
+                }
+                Some(b')') => {
+                    *i += 1;
+                    return true;
+                }
+                _ => return false,
+            }
+        }
+    }
+
+    pub fn is_valid(s: &str) -> bool {
+        let b = s.as_bytes();
+        let mut i = 0usize;
+        if keyword(b, &mut i, "POLYGON") {
+            if !polygon_body(b, &mut i) {
+                return false;
+            }
+        } else if keyword(b, &mut i, "MULTIPOLYGON") {
+            if !expect(b, &mut i, b'(') || !polygon_body(b, &mut i) {
+                return false;
+            }
+            loop {
+                skip_ws(b, &mut i);
+                match b.get(i) {
+                    Some(b',') => {
+                        i += 1;
+                        if !polygon_body(b, &mut i) {
+                            return false;
+                        }
+                    }
+                    Some(b')') => {
+                        i += 1;
+                        break;
+                    }
+                    _ => return false,
+                }
+            }
+        } else {
+            return false;
+        }
+        skip_ws(b, &mut i);
+        i == b.len()
+    }
 }
 
 #[cfg(test)]
