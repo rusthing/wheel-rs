@@ -27,7 +27,7 @@
 //! | [`is_plate_cn`] | 机动车号牌：省份简称 + 发牌机关字母 + 序号（7 位普通 / 8 位新能源 / 带后缀），只认大写 | 否，序号需含数字 |
 //! | [`is_url_http`] | `http://` 或 `https://` 开头的绝对 URL，不含空白 | 是 |
 //! | [`is_tree_code`] | 树编码：每层固定 3 位数字，1~10 层，总长 3/6/…/30 | 是 |
-//! | [`is_wkt_polygon`] | 区域轮廓 WKT：`POLYGON`/`MULTIPOLYGON` 结构 + 环闭合 + 每环 ≥4 点 | 否，数值范围/走向/自相交另判 |
+//! | [`is_wkt_polygon`] | 区域轮廓 WKT：`POLYGON`/`MULTIPOLYGON`（含 Z/M/ZM）+ 环闭合 + 每环 ≥4 点 | 否，数值范围/走向/自相交另判 |
 //! | [`is_uuid`] | 8-4-4-4-12 十六进制，忽略大小写 | 是 |
 //! | [`is_account_name`] | 登录名：字母开头，字母/数字/下划线，4~32 位 | 是 |
 //! | [`is_code`] | 通用编码：字母/数字/`_`/`.`/`-`，1~50 位 | 是 |
@@ -661,7 +661,9 @@ pub fn is_ip(s: &str) -> bool {
 /// OGC Simple Features 的面几何文本：`POLYGON((外环),(内环)...)` 或
 /// `MULTIPOLYGON((...),(...))`（多部件）。只做**文本结构**判断：
 ///
-/// * 关键字大小写不敏感，后面不能紧跟字母（`POLYGONX` 拒绝）
+/// * 关键字大小写不敏感，可跟 OGC 维度标记 `Z` / `M` / `ZM`，空格分隔
+///   （`POLYGON Z(`）或连写（`POLYGONZ(`）都行；其它字母后缀（`POLYGONX`）拒绝
+/// * 声明几维就按几维读点，只以 x/y 判闭合；`POLYGON Z` 却只给 2 维坐标也拒绝
 /// * 每个**环**至少 4 个点且**首尾相同**（闭合）；外环/内环都一样判
 /// * 坐标是十进制数（可带符号、小数、指数）；`NaN`/`inf` 这类无数字的词法进不来
 /// * 不认 `EMPTY`——区域轮廓必须有实际顶点，空几何没有业务意义
@@ -688,8 +690,15 @@ pub fn is_ip(s: &str) -> bool {
 /// assert!(!is_wkt_polygon("POLYGON((0 0, 1 0, 1 1, 0 1))"));
 /// // 不闭合（3 点）
 /// assert!(!is_wkt_polygon("POLYGON((0 0, 1 0, 1 1))"));
+/// // 带高度 / 度量值的 OGC 3D、4D WKT
+/// assert!(is_wkt_polygon("POLYGON Z ((0 0 30, 4 0 30, 4 4 30, 0 0 30))"));
+/// assert!(is_wkt_polygon("POLYGONZ((0 0 30, 4 0 30, 4 4 30, 0 0 30))"));
+/// assert!(is_wkt_polygon("MULTIPOLYGON ZM (((0 0 1 2, 4 0 1 2, 4 4 1 2, 0 0 1 2)))"));
 /// assert!(!is_wkt_polygon("POINT(1 2)"));
 /// assert!(!is_wkt_polygon("POLYGON EMPTY"));
+/// assert!(!is_wkt_polygon("POLYGONX((0 0, 4 0, 4 4, 0 0))"));
+/// // 声明 3D 却只给 2 维坐标
+/// assert!(!is_wkt_polygon("POLYGON Z ((0 0, 4 0, 4 4, 0 0))"));
 /// assert!(!is_wkt_polygon(""));
 /// ```
 pub fn is_wkt_polygon(s: &str) -> bool {
@@ -714,18 +723,37 @@ mod wkt_polygon {
         }
     }
 
-    /// 关键字大小写不敏感；后面不能紧跟字母，防止 `POLYGONX` 蒙混过关
+    /// 关键字大小写不敏感；紧随其后的字母串交给 [`dimension`] 判合法性，
+    /// 这样 `POLYGONZ` 能放行、`POLYGONX` 仍被拒绝。
     fn keyword(b: &[u8], i: &mut usize, kw: &str) -> bool {
         skip_ws(b, i);
         let end = *i + kw.len();
         if end > b.len() || !b[*i..end].eq_ignore_ascii_case(kw.as_bytes()) {
             return false;
         }
-        if end < b.len() && b[end].is_ascii_alphabetic() {
-            return false;
-        }
         *i = end;
         true
+    }
+
+    /// 关键字后的可选维度标记，返回每个点应有的坐标数：XY=2 / XYZ(XYM)=3 / XYZM=4
+    ///
+    /// 空格分隔（`POLYGON Z(`）与连写（`POLYGONZ(`）都认；`EMPTY` 和任意
+    /// 其它单词一律拒绝——区域轮廓必须有实际顶点。
+    fn dimension(b: &[u8], i: &mut usize) -> Option<usize> {
+        skip_ws(b, i);
+        let start = *i;
+        while *i < b.len() && b[*i].is_ascii_alphabetic() {
+            *i += 1;
+        }
+        let word = std::str::from_utf8(&b[start..*i]).ok()?;
+        if word.is_empty() {
+            return Some(2);
+        }
+        match word.to_ascii_uppercase().as_str() {
+            "Z" | "M" => Some(3),
+            "ZM" => Some(4),
+            _ => None,
+        }
     }
 
     /// 十进制数：符号 + 数字 [ . 数字 ] [ e 指数 ]；必须至少有一个数字
@@ -772,14 +800,19 @@ mod wkt_polygon {
             .ok()
     }
 
-    fn point(b: &[u8], i: &mut usize) -> Option<(f64, f64)> {
+    /// 只取前两维 (x, y)；其余维度（Z/M）按声明读完再丢弃。少读一维会让
+    /// 后面的逗号被当成坐标起点，等于放过「声明 3D、坐标 2D」的畸形 WKT。
+    fn point(b: &[u8], i: &mut usize, arity: usize) -> Option<(f64, f64)> {
         let x = number(b, i)?;
         let y = number(b, i)?;
+        for _ in 2..arity {
+            number(b, i)?;
+        }
         Some((x, y))
     }
 
     /// 环：`( pt (, pt)* )`，至少 4 点且首尾相同
-    fn ring(b: &[u8], i: &mut usize) -> bool {
+    fn ring(b: &[u8], i: &mut usize, arity: usize) -> bool {
         if !expect(b, i, b'(') {
             return false;
         }
@@ -790,7 +823,7 @@ mod wkt_polygon {
                 *i += 1;
                 break;
             }
-            let p = match point(b, i) {
+            let p = match point(b, i, arity) {
                 Some(p) => p,
                 None => return false,
             };
@@ -817,8 +850,8 @@ mod wkt_polygon {
     }
 
     /// 多边形体：`( ring (, ring)* )`，首环外环、其余内环
-    fn polygon_body(b: &[u8], i: &mut usize) -> bool {
-        if !expect(b, i, b'(') || !ring(b, i) {
+    fn polygon_body(b: &[u8], i: &mut usize, arity: usize) -> bool {
+        if !expect(b, i, b'(') || !ring(b, i, arity) {
             return false;
         }
         loop {
@@ -826,7 +859,7 @@ mod wkt_polygon {
             match b.get(*i) {
                 Some(b',') => {
                     *i += 1;
-                    if !ring(b, i) {
+                    if !ring(b, i, arity) {
                         return false;
                     }
                 }
@@ -842,12 +875,20 @@ mod wkt_polygon {
     pub fn is_valid(s: &str) -> bool {
         let b = s.as_bytes();
         let mut i = 0usize;
-        if keyword(b, &mut i, "POLYGON") {
-            if !polygon_body(b, &mut i) {
-                return false;
-            }
+        let is_multi = if keyword(b, &mut i, "POLYGON") {
+            false
         } else if keyword(b, &mut i, "MULTIPOLYGON") {
-            if !expect(b, &mut i, b'(') || !polygon_body(b, &mut i) {
+            true
+        } else {
+            return false;
+        };
+        let arity = match dimension(b, &mut i) {
+            Some(arity) => arity,
+            None => return false,
+        };
+
+        if is_multi {
+            if !expect(b, &mut i, b'(') || !polygon_body(b, &mut i, arity) {
                 return false;
             }
             loop {
@@ -855,7 +896,7 @@ mod wkt_polygon {
                 match b.get(i) {
                     Some(b',') => {
                         i += 1;
-                        if !polygon_body(b, &mut i) {
+                        if !polygon_body(b, &mut i, arity) {
                             return false;
                         }
                     }
@@ -866,7 +907,7 @@ mod wkt_polygon {
                     _ => return false,
                 }
             }
-        } else {
+        } else if !polygon_body(b, &mut i, arity) {
             return false;
         }
         skip_ws(b, &mut i);
@@ -1094,5 +1135,23 @@ mod tests {
         assert!(!is_ipv4("1.1.1"));
         assert!(!is_ip("[::1]"));
         assert!(!is_ip("example.com"));
+    }
+
+    #[test]
+    fn wkt_polygon_rules() {
+        assert!(is_wkt_polygon("POLYGON((0 0, 4 0, 4 4, 0 0))"));
+        assert!(is_wkt_polygon("POLYGON Z ((0 0 30, 4 0 30, 4 4 30, 0 0 30))"));
+        assert!(is_wkt_polygon("polygonz((0 0 30, 4 0 30, 4 4 30, 0 0 30))"));
+        assert!(is_wkt_polygon("POLYGON M ((0 0 1, 4 0 1, 4 4 1, 0 0 1))"));
+        assert!(is_wkt_polygon(
+            "MULTIPOLYGON ZM (((0 0 1 2, 4 0 1 2, 4 4 1 2, 0 0 1 2)))"
+        ));
+        // 声明的维度必须与实际坐标数一致
+        assert!(!is_wkt_polygon("POLYGON Z ((0 0, 4 0, 4 4, 0 0))"));
+        assert!(!is_wkt_polygon("POLYGON ZM ((0 0 1, 4 0 1, 4 4 1, 0 0 1))"));
+        assert!(!is_wkt_polygon("POLYGONX((0 0, 4 0, 4 4, 0 0))"));
+        assert!(!is_wkt_polygon("POLYGON EMPTY"));
+        assert!(!is_wkt_polygon("POLYGON((0 0, 4 0, 4 4, 0 4))")); // 不闭合
+        assert!(!is_wkt_polygon(""));
     }
 }
