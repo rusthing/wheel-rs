@@ -27,7 +27,7 @@ use sha2::Digest;
 use std::fs::File;
 use std::io;
 use std::io::Read;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time::{Instant, sleep_until};
@@ -171,6 +171,46 @@ pub fn is_cross_device_error(err: &io::Error) -> bool {
     }
 }
 
+/// # 解析软链，得到事件真正会产生的那个路径
+///
+/// [`std::fs::canonicalize`] 要求路径上每一级都存在，而这里的目标文件可能暂时不存在
+/// （比如容器里 `log.toml -> config/log.toml`，config 目录还没就绪）。所以自己逐级跟随
+/// 软链：只看最后一级是不是软链，是就跳过去，最多跳 8 层防止环。
+fn resolve_symlink(path: &Path) -> PathBuf {
+    let mut cur = path.to_path_buf();
+    for _ in 0..8 {
+        match std::fs::symlink_metadata(&cur) {
+            Ok(md) if md.file_type().is_symlink() => match std::fs::read_link(&cur) {
+                Ok(target) => {
+                    cur = if target.is_absolute() {
+                        target
+                    } else {
+                        cur.parent().unwrap_or(Path::new(".")).join(target)
+                    };
+                }
+                Err(_) => break,
+            },
+            _ => break,
+        }
+    }
+    cur
+}
+
+/// # 取「最近的已存在祖先目录」并规范化
+///
+/// 目录尚未创建时（例如配置目录还没挂进来）返回最近的已存在上级，
+/// 避免 `watch` 直接失败导致整个监听列表为空。
+fn nearest_existing_dir(path: &Path) -> PathBuf {
+    let mut dir = path.to_path_buf();
+    while !dir.is_dir() {
+        match dir.parent() {
+            Some(parent) if !parent.as_os_str().is_empty() => dir = parent.to_path_buf(),
+            _ => break,
+        }
+    }
+    std::fs::canonicalize(&dir).unwrap_or(dir)
+}
+
 /// # 文件监听器
 ///
 /// 封装 `notify` 的底层 watcher 与两个后台 tokio 任务（去抖动任务、事件转发任务）。
@@ -195,8 +235,17 @@ impl FileWatcher {
     /// # 创建文件监听器
     ///
     /// 内部完成三件事：创建 `notify` watcher、启动去抖动任务、启动事件消费任务
-    /// （把去抖动后的事件交给 `on_change`）。只关注修改（modify）与删除（remove）事件，
-    /// 其余事件会被直接忽略。监听为非递归模式（`RecursiveMode::NonRecursive`）。
+    /// （把去抖动后的事件交给 `on_change`）。只关注修改（modify）、删除（remove）
+    /// 与创建（create）事件，其余事件会被直接忽略。
+    ///
+    /// 实际的 `watch` 落在**目标文件所在目录**（`RecursiveMode::NonRecursive`），
+    /// 再用「目录 + 文件名」过滤事件，而不是直接 `watch` 文件：
+    /// inotify 对文件的 watch 绑在该文件的 inode 上，文件被 rename / 临时文件+rename
+    /// 覆盖后内核会连 watch 一起摘掉，导致热更新只能生效一次。目标路径是软链时，
+    /// 会先跟随软链找到真实文件，再监听真实文件所在目录。
+    ///
+    /// 目标文件当前不存在也不会报错：监听落在最近的已存在祖先目录上，
+    /// 文件之后被创建同样能收到事件。
     ///
     /// 需在 tokio 运行时中调用，因为内部使用 `tokio::spawn`。
     ///
@@ -282,8 +331,31 @@ impl FileWatcher {
             }
         });
 
-        // 创建 watcher，过滤非修改和删除事件，发送最新事件到 event_tx
+        // 把「要监听的文件」换算成「要监听的目录 + 目标文件名」。
+        //
+        // inotify 对**文件**的 watch 绑在该文件的 inode 上：文件被 rename / 临时文件+rename
+        // 覆盖（换了 inode）之后，内核会把 watch 一并摘掉（IN_IGNORED），此后再也不产生事件
+        // ——热更新只能生效一次。目录的 watch 不会因子文件被替换而失效，因此统一监听父目录，
+        // 再按「目录 + 文件名」把同目录下临时文件、备份、日志等杂事件过滤掉。
+        let mut targets: Vec<(PathBuf, std::ffi::OsString)> = Vec::new();
+        let mut watch_dirs: Vec<PathBuf> = Vec::new();
+        for file in files {
+            // 目标是软链（容器里 log.toml -> config/log.toml）时要跟到真实文件：
+            // 事件产生在真实文件所在的目录，落在软链所在的 app_dir 上是匹配不到的。
+            let real = resolve_symlink(Path::new(file));
+            let Some(name) = real.file_name().map(|n| n.to_os_string()) else {
+                warn!("监听目标没有文件名，忽略: {}", file);
+                continue;
+            };
+            let dir = nearest_existing_dir(real.parent().unwrap_or(Path::new(".")));
+            if !watch_dirs.contains(&dir) {
+                watch_dirs.push(dir.clone());
+            }
+            targets.push((dir, name));
+        }
+
         info!("file watcher start watching: {:?}", files);
+        info!("file watcher watches dirs: {:?}", watch_dirs);
         let mut watcher =
             notify::recommended_watcher(move |res: notify::Result<Event>| match res {
                 Ok(event) => {
@@ -291,21 +363,32 @@ impl FileWatcher {
                         "notify raw event: kind={:?}, paths={:?}",
                         event.kind, event.paths
                     );
-                    if !(event.kind.is_modify() || event.kind.is_remove()) {
+                    if !(event.kind.is_modify()
+                        || event.kind.is_remove()
+                        || event.kind.is_create())
+                    {
                         return;
                     }
-                    if !event.paths.is_empty() {
-                        let _ = event_tx.send(event);
+                    // 只认「目标文件所在目录 + 目标文件名」，其它子文件（临时文件、.bak、日志）放行不走
+                    let hit = event.paths.iter().any(|p| {
+                        targets.iter().any(|(dir, target_name)| {
+                            p.parent() == Some(dir.as_path())
+                                && p.file_name() == Some(target_name.as_os_str())
+                        })
+                    });
+                    if !hit || event.paths.is_empty() {
+                        return;
                     }
+                    let _ = event_tx.send(event);
                 }
                 Err(e) => {
                     error!("notify watcher error: {:?}", e);
                 }
             })?;
 
-        for file in files {
-            info!("watching file: {}", file);
-            watcher.watch(Path::new(file), RecursiveMode::NonRecursive)?;
+        for dir in &watch_dirs {
+            info!("watching dir: {}", dir.display());
+            watcher.watch(dir, RecursiveMode::NonRecursive)?;
         }
 
         Ok(Self {
@@ -393,6 +476,40 @@ mod tests {
         }
         let other = io::Error::new(io::ErrorKind::InvalidInput, "bad input");
         assert!(!is_cross_device_error(&other));
+    }
+
+    #[test]
+    fn resolve_symlink_and_nearest_dir() {
+        let root = std::env::temp_dir().join("wheel_rs_link_test");
+        std::fs::create_dir_all(root.join("config")).unwrap();
+        let real = root.join("config/log.toml");
+        std::fs::write(&real, b"level = \"info\"").unwrap();
+
+        // 普通文件原样返回
+        assert_eq!(resolve_symlink(&real), real);
+
+        #[cfg(unix)]
+        {
+            // 软链解析到真实文件：监听必须落在真实文件所在的 config 目录上，
+            // 否则 rename 覆盖的事件在软链所在的 app_dir 下匹配不到。
+            let link = root.join("log.toml");
+            std::fs::remove_file(&link).ok();
+            std::os::unix::fs::symlink("config/log.toml", &link).unwrap();
+            assert_eq!(resolve_symlink(&link), real);
+        }
+
+        // 不存在的路径原样返回，不 panic
+        let missing = root.join("nope.toml");
+        assert_eq!(resolve_symlink(&missing), missing);
+
+        // 目录还没建时落到最近的已存在祖先
+        let deep = root.join("a/b/c");
+        assert_eq!(
+            nearest_existing_dir(&deep),
+            std::fs::canonicalize(&root).unwrap()
+        );
+
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
