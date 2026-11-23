@@ -36,6 +36,8 @@ libc = "0.2.190"
 ipnet = "2.12.2"
 regex = "1.13.1"
 hickory-resolver = "0.26.3"
+# 姓名转拼音：只用到不带声调的 plain 读音，关掉多音字大表减小体积
+pinyin = { version = "0.11.0", default-features = false, features = ["plain"] }
 
 # 仅用于文档测试（doctest）中的序列化示例，不会进入发布产物，
 # 也不会成为下游使用方的依赖。serde_json 本就在 Cargo.lock 中（间接依赖）。

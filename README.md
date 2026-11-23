@@ -17,6 +17,7 @@ A Rust utility library providing various helpful utilities for common tasks.
 - **Trie**: Compressed prefix tree (Patricia trie)
 - **String Utilities**: Camel case splitting, `snake_case` → `PascalCase`
 - **Validation & Masking**: Regex validation for email / mobile / ID card / USCC / bank card / tree codes, and display masking for the same fields
+- **Pinyin**: Chinese names to full pinyin and initials, with common polyphonic surnames handled
 - **Serialization**: Custom serde implementations for `Duration`, `IpNet`, `PathBuf`, `LevelFilter`, `Rotation`, `u64`, `Addr`, `Urn`, `Regex` and their `Option` / `Vec` variants
 
 ## Modules
@@ -76,6 +77,9 @@ A Rust utility library providing various helpful utilities for common tasks.
 - `mask` / `mask_with`: Keep N leading and M trailing characters, mask the rest (char-based, CJK safe)
 - `mask_mobile` / `mask_id_card` / `mask_bank_card` / `mask_email` / `mask_name` / `mask_ip`: Display-only masking
 - `mask_secret`: Whole-string masking for passwords / salts / tokens — fixed width, length never leaks
+
+### `pinyin_utils`
+- `name_pinyin`: Chinese name to `(initials, full pinyin)` (`张三` → `ZS` / `zhangsan`), with common polyphonic surnames handled
 
 ### `serde`
 Custom serialization/deserialization, used via `#[serde(with = "...")]`, e.g.:

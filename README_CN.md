@@ -18,6 +18,7 @@
 - **字符串工具**：驼峰拆分、`snake_case` 转 `PascalCase`
 - **校验与脱敏**：邮箱 / 手机号 / 身份证号 / 统一社会信用代码 / 银行卡号 / 树编码的正则校验，
   以及同名字段的展示用脱敏
+- **拼音工具**：中文姓名转全拼与简拼，常见多音字姓氏按姓氏读音处理
 - **序列化工具**：为 `Duration`、`IpNet`、`PathBuf`、`LevelFilter`、`Rotation`、`u64`、`Addr`、`Urn`、`Regex` 及其 `Option` / `Vec` 变体提供自定义 serde 实现
 
 ## 模块说明
@@ -80,6 +81,9 @@
 - `mask` / `mask_with`：保留前 N 与后 M 个字符，中间逐字符遮蔽（按 `char` 处理，中文安全）
 - `mask_mobile` / `mask_id_card` / `mask_bank_card` / `mask_email` / `mask_name` / `mask_ip`：展示用脱敏
 - `mask_secret`：密码 / 盐 / 令牌类整串遮蔽，定宽输出，不暴露原文长度
+
+### `pinyin_utils` 拼音工具模块
+- `name_pinyin`：中文姓名转 `(简拼, 全拼)`（张三 → `ZS` / `zhangsan`），常见多音字姓氏按姓氏读音处理
 
 ### `serde` 序列化模块
 通过 `#[serde(with = "...")]` 使用，例如：
